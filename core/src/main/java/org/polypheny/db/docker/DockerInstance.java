@@ -318,6 +318,7 @@ public final class DockerInstance {
         private List<String> initCommand = List.of();
         private final List<Integer> exposedPorts = new ArrayList<>();
         private final Map<String, String> environmentVariables = new HashMap<>();
+        private final List<String> volumes = new ArrayList<>();
 
 
         private ContainerBuilder( String imageName, String uniqueName ) {
@@ -344,6 +345,31 @@ public final class DockerInstance {
         }
 
 
+        /**
+         * Mounts a volume or host directory into the container.
+         *
+         * @param hostPath a named Docker volume or an absolute path on the Docker host
+         * @param containerPath the absolute path inside the container
+         */
+        public ContainerBuilder withVolume( String hostPath, String containerPath ) {
+            volumes.add( hostPath + ":" + containerPath );
+            return this;
+        }
+
+
+        /**
+         * Mounts a volume or host directory into the container with an explicit mode.
+         *
+         * @param hostPath a named Docker volume or an absolute path on the Docker host
+         * @param containerPath the absolute path inside the container
+         * @param readOnly whether the mount should be read-only
+         */
+        public ContainerBuilder withVolume( String hostPath, String containerPath, boolean readOnly ) {
+            volumes.add( hostPath + ":" + containerPath + (readOnly ? ":ro" : "") );
+            return this;
+        }
+
+
         public DockerContainer createAndStart() throws IOException {
             synchronized ( DockerInstance.this ) {
                 final String registry = host.getRegistryOrDefault();
@@ -355,7 +381,7 @@ public final class DockerInstance {
                     imageNameWithRegistry = registry + "/" + imageName;
                 }
 
-                String uuid = client.createAndStartContainer( DockerContainer.getPhysicalUniqueName( uniqueName ), imageNameWithRegistry, exposedPorts, initCommand, environmentVariables, List.of() );
+                String uuid = client.createAndStartContainer( DockerContainer.getPhysicalUniqueName( uniqueName ), imageNameWithRegistry, exposedPorts, initCommand, environmentVariables, volumes );
                 containerUuids.add( uuid );
                 return new DockerContainer( uuid, uniqueName );
             }
