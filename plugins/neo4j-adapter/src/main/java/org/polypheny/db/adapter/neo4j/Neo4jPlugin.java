@@ -45,6 +45,7 @@ import org.polypheny.db.adapter.DataStore.IndexMethodModel;
 import org.polypheny.db.adapter.DeployMode;
 import org.polypheny.db.adapter.DeployMode.DeploySetting;
 import org.polypheny.db.adapter.GraphModifyDelegate;
+import org.polypheny.db.adapter.Resettable;
 import org.polypheny.db.adapter.annotations.AdapterProperties;
 import org.polypheny.db.adapter.annotations.AdapterSettingInteger;
 import org.polypheny.db.adapter.annotations.AdapterSettingString;
@@ -143,7 +144,7 @@ public class Neo4jPlugin extends PolyPlugin {
     @AdapterSettingInteger(name = "port", defaultValue = 7687, appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "user", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "password", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
-    public static class Neo4jStore extends DataStore<GraphAdapterCatalog> {
+    public static class Neo4jStore extends DataStore<GraphAdapterCatalog> implements Resettable {
 
         private final String DEFAULT_DATABASE = "public";
         @Delegate(excludes = Exclude.class)
@@ -504,6 +505,27 @@ public class Neo4jPlugin extends PolyPlugin {
                     context.getStatement().getTransaction().getXid(),
                     String.format( "MATCH (n:%s) DETACH DELETE n", physical.name ) );
 
+        }
+
+
+        /**
+         * Removes all nodes and relationships from the underlying Neo4j database.
+         * <p>
+         * In contrast to {@link #truncate(Context, long)}, which only removes the data of a single
+         * entity, this wipes the entire Neo4j instance managed by this adapter. It is intended for
+         * development and testing, where re-deploying the whole adapter just to get a clean state
+         * is unnecessarily expensive.
+         */
+        @Override
+        public void resetData() {
+            transactionProvider.commitAll();
+            // Deleting everything in a single transaction exhausts the heap of the Neo4j instance
+            // for larger datasets, so the deletion is batched into separate transactions.
+            try ( Session resetSession = db.session() ) {
+                resetSession.run( "CALL { MATCH (n) DETACH DELETE n } IN TRANSACTIONS OF 10000 ROWS" ).consume();
+            } catch ( Exception e ) {
+                throw new GenericRuntimeException( "Failed to reset Neo4j database", e );
+            }
         }
 
 

@@ -76,6 +76,7 @@ import org.polypheny.db.adapter.AdapterManager.AdapterInformation;
 import org.polypheny.db.adapter.ConnectionMethod;
 import org.polypheny.db.adapter.DataSource;
 import org.polypheny.db.adapter.DataStore;
+import org.polypheny.db.adapter.Resettable;
 import org.polypheny.db.adapter.DataStore.FunctionalIndexInfo;
 import org.polypheny.db.adapter.RelationalDataSource.ExportedColumn;
 import org.polypheny.db.adapter.index.IndexManager;
@@ -2176,6 +2177,43 @@ public class Crud implements InformationObserver, PropertyChangeListener {
                         .transactionManager( transactionManager )
                         .build(), UIRequest.builder().build() ).get( 0 );
         ctx.json( res );
+    }
+
+
+    /**
+     * Removes all data from an adapter without dropping the adapter itself.
+     * <p>
+     * Only adapters implementing {@link org.polypheny.db.adapter.Resettable} support this.
+     * It is primarily intended for development and testing, where re-deploying an adapter
+     * just to get a clean state is unnecessarily expensive.
+     */
+    void resetAdapterData( final Context ctx ) {
+        String uniqueName = ctx.body();
+        Optional<Adapter<?>> adapter = AdapterManager.getInstance().getAdapter( uniqueName );
+
+        if ( adapter.isEmpty() ) {
+            ctx.status( 404 ).json( RelationalResult.builder()
+                    .error( "There is no adapter with the unique name '" + uniqueName + "'." )
+                    .build() );
+            return;
+        }
+
+        if ( !(adapter.get() instanceof Resettable resettable) ) {
+            ctx.status( 400 ).json( RelationalResult.builder()
+                    .error( "The adapter '" + uniqueName + "' does not support resetting its data." )
+                    .build() );
+            return;
+        }
+
+        try {
+            resettable.resetData();
+            ctx.json( RelationalResult.builder().affectedTuples( 0 ).build() );
+        } catch ( Exception e ) {
+            log.error( "Failed to reset data of adapter {}", uniqueName, e );
+            ctx.status( 500 ).json( RelationalResult.builder()
+                    .error( "Failed to reset adapter: " + e.getMessage() )
+                    .build() );
+        }
     }
 
 
