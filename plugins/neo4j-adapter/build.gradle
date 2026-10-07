@@ -54,6 +54,7 @@ delombok {
  */
 test {
     include "**/MongoAdapterTest.class"
+    include "**/bulkimport/*Test.class"
     maxHeapSize = "2g" // Increase heap size (default is 512MB)
 }
 
