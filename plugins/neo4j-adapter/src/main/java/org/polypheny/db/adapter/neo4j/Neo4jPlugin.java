@@ -128,6 +128,17 @@ public class Neo4jPlugin extends PolyPlugin {
     }
 
 
+    /**
+     * Name of the Docker volume holding the Neo4j store files.
+     * <p>
+     * A named volume is required so that a throwaway container can bulk-load data into the
+     * same store, and so that a replacement container can take the data over.
+     */
+    public static String getDataVolumeName( String uniqueName ) {
+        return DockerContainer.getPhysicalUniqueName( uniqueName ) + "_data";
+    }
+
+
     static String getMappingLabel( long id ) {
         return String.format( "___n_%d___", id );
     }
@@ -185,6 +196,7 @@ public class Neo4jPlugin extends PolyPlugin {
                     try {
                         this.container = instance.newBuilder( "polypheny/neo:latest", getUniqueName() )
                                 .withEnvironmentVariable( "NEO4J_AUTH", String.format( "%s/%s", user, pass ) )
+                                .withVolume( getDataVolumeName( getUniqueName() ), "/data" )
                                 .createAndStart();
                     } catch ( IOException e ) {
                         throw new GenericRuntimeException( e );
