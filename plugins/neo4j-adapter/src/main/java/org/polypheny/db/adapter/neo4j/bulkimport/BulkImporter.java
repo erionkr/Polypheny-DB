@@ -193,7 +193,12 @@ public class BulkImporter {
 
 
     private String uniqueImporterName() {
-        return dataVolume + IMPORT_CONTAINER_SUFFIX;
+        // dataVolume already carries the physical prefix the builder adds again, so only
+        // the adapter-specific part is kept to avoid a doubled container name.
+        int lastSeparator = dataVolume.lastIndexOf( "_" + "data" );
+        String adapterPart = lastSeparator < 0 ? dataVolume : dataVolume.substring( 0, lastSeparator );
+        int prefixEnd = adapterPart.lastIndexOf( "_" );
+        return (prefixEnd < 0 ? adapterPart : adapterPart.substring( prefixEnd + 1 )) + IMPORT_CONTAINER_SUFFIX;
     }
 
 
