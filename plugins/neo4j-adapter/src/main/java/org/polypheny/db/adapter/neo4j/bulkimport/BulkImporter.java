@@ -19,6 +19,7 @@ package org.polypheny.db.adapter.neo4j.bulkimport;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -46,6 +47,7 @@ public class BulkImporter {
     private static final String IMPORT_CONTAINER_SUFFIX = "_bulk_importer";
     private static final String DATA_MOUNT = "/data";
     private static final String CSV_MOUNT = "/import";
+    private static final String IMPORT_HEAP_SIZE = "2G";
 
     private final DockerInstance dockerInstance;
     private final String imageName;
@@ -82,10 +84,15 @@ public class BulkImporter {
         requireLocalDockerHost();
 
         Path csvDirectory = Files.createTempDirectory( "polypheny-neo4j-bulk-" );
+        // The Neo4j image runs as its own user and refuses to start when it cannot read a
+        // mounted folder, so the transformed CSVs have to be world-readable.
+        makeWorldReadable( csvDirectory );
         try {
             long transformStarted = System.nanoTime();
             TransformResult transformed = transform( datasetRoot, csvDirectory );
             long transformMillis = (System.nanoTime() - transformStarted) / 1_000_000;
+
+            makeFilesWorldReadable( csvDirectory );
 
             long importStarted = System.nanoTime();
             runImport( csvDirectory );
@@ -148,6 +155,8 @@ public class BulkImporter {
                 // Overriding the command keeps the entrypoint from starting Neo4j, which would
                 // make the database unavailable to neo4j-admin import.
                 .withCommand( List.of( "sleep", "infinity" ) )
+                // neo4j-admin import is memory hungry; the default heap gets the process killed
+                .withEnvironmentVariable( "HEAP_SIZE", IMPORT_HEAP_SIZE )
                 .withVolume( dataVolume, DATA_MOUNT )
                 .withVolume( csvDirectory.toAbsolutePath().toString(), CSV_MOUNT, true )
                 .createAndStart();
@@ -215,6 +224,22 @@ public class BulkImporter {
             long relationships,
             long transformMillis,
             long importMillis ) {
+    }
+
+
+
+    private static void makeWorldReadable( Path path ) throws IOException {
+        Files.setPosixFilePermissions( path, PosixFilePermissions.fromString( "rwxr-xr-x" ) );
+    }
+
+
+
+    private static void makeFilesWorldReadable( Path directory ) throws IOException {
+        try (var files = Files.list( directory )) {
+            for ( Path file : files.toList() ) {
+                Files.setPosixFilePermissions( file, PosixFilePermissions.fromString( "rw-r--r--" ) );
+            }
+        }
     }
 
 }

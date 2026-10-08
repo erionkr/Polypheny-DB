@@ -166,7 +166,7 @@ public class Neo4jPlugin extends PolyPlugin {
 
         private int port;
         private final String user;
-        private final Session session;
+        private Session session;
         private final DockerContainer container;
         private Driver db;
         private final String pass;
@@ -174,7 +174,7 @@ public class Neo4jPlugin extends PolyPlugin {
         @Getter
         private NeoNamespace currentNamespace;
 
-        private final TransactionProvider transactionProvider;
+        private TransactionProvider transactionProvider;
         private String host;
 
 
@@ -569,8 +569,27 @@ public class Neo4jPlugin extends PolyPlugin {
                     getMappingLabel( graph.id ) );
 
             try {
+                // neo4j-admin import refuses to touch a store that is in use, so the serving
+                // container has to go down for the duration of the import.
                 transactionProvider.commitAll();
+                session.close();
+                db.close();
+                container.stop();
+
                 BulkImporter.ImportResult result = importer.importDataset( datasetRoot );
+
+                container.start();
+                if ( !container.waitTillStarted( this::testConnection, 100000 ) ) {
+                    throw new GenericRuntimeException( "Neo4j did not come back up after the bulk load" );
+                }
+                // testConnection() rebuilds the driver, so everything hanging off it is stale.
+                this.session = this.db.session();
+                this.transactionProvider = new TransactionProvider( this.db );
+                adapterCatalog.physicals.values().stream()
+                        .filter( PhysicalGraph.class::isInstance )
+                        .map( p -> ((PhysicalGraph) p).id )
+                        .forEach( id -> refreshGraph( adapterCatalog.getPhysical( id ).allocationId ) );
+
                 return String.format(
                         "Imported %d nodes and %d relationships (%d ms transform, %d ms import)",
                         result.nodes(), result.relationships(),
