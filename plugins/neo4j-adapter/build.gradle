@@ -10,6 +10,8 @@ dependencies {
 
 
     // --- Test Compile ---
+    testImplementation project(":core")
+    testImplementation project(":config")
     testImplementation project(path: ":core", configuration: "tests")
 
 }
@@ -56,6 +58,11 @@ test {
     include "**/MongoAdapterTest.class"
     include "**/bulkimport/*Test.class"
     maxHeapSize = "2g" // Increase heap size (default is 512MB)
+
+    // Pass the dataset location through to the integration test, which skips without it
+    if ( System.getProperty( "ldbc.dataset" ) != null ) {
+        systemProperty "ldbc.dataset", System.getProperty( "ldbc.dataset" )
+    }
 }
 
 

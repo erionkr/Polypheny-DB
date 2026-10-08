@@ -19,6 +19,7 @@ package org.polypheny.db.adapter.neo4j;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,10 +46,12 @@ import org.polypheny.db.adapter.DataStore.IndexMethodModel;
 import org.polypheny.db.adapter.DeployMode;
 import org.polypheny.db.adapter.DeployMode.DeploySetting;
 import org.polypheny.db.adapter.GraphModifyDelegate;
+import org.polypheny.db.adapter.BulkLoadable;
 import org.polypheny.db.adapter.Resettable;
 import org.polypheny.db.adapter.annotations.AdapterProperties;
 import org.polypheny.db.adapter.annotations.AdapterSettingInteger;
 import org.polypheny.db.adapter.annotations.AdapterSettingString;
+import org.polypheny.db.adapter.neo4j.bulkimport.BulkImporter;
 import org.polypheny.db.adapter.neo4j.types.NestedSingleType;
 import org.polypheny.db.adapter.neo4j.util.NeoUtil;
 import org.polypheny.db.catalog.catalogs.GraphAdapterCatalog;
@@ -155,7 +158,7 @@ public class Neo4jPlugin extends PolyPlugin {
     @AdapterSettingInteger(name = "port", defaultValue = 7687, appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "user", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "password", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
-    public static class Neo4jStore extends DataStore<GraphAdapterCatalog> implements Resettable {
+    public static class Neo4jStore extends DataStore<GraphAdapterCatalog> implements Resettable, BulkLoadable {
 
         private final String DEFAULT_DATABASE = "public";
         @Delegate(excludes = Exclude.class)
@@ -538,6 +541,56 @@ public class Neo4jPlugin extends PolyPlugin {
             } catch ( Exception e ) {
                 throw new GenericRuntimeException( "Failed to reset Neo4j database", e );
             }
+        }
+
+
+        /**
+         * Loads an LDBC SNB Interactive dataset through Neo4j's offline bulk loader.
+         * <p>
+         * The adapter has to hold exactly one graph: the dataset is pre-filled into the store as
+         * a whole, so there is no way to tell which of several graphs it should end up in.
+         */
+        @Override
+        public String bulkLoad( Path datasetRoot ) {
+            if ( deployMode != DeployMode.DOCKER ) {
+                throw new GenericRuntimeException(
+                        "Bulk load is only supported for Docker deployments, not " + deployMode.name() );
+            }
+
+            PhysicalGraph graph = singleGraph();
+            int instanceId = Integer.parseInt( settings.get( "instanceId" ) );
+            DockerInstance instance = DockerManager.getInstance().getInstanceById( instanceId )
+                    .orElseThrow( () -> new GenericRuntimeException( "No docker instance with id " + instanceId ) );
+
+            BulkImporter importer = new BulkImporter(
+                    instance,
+                    "polypheny/neo:latest",
+                    getDataVolumeName( getUniqueName() ),
+                    getMappingLabel( graph.id ) );
+
+            try {
+                transactionProvider.commitAll();
+                BulkImporter.ImportResult result = importer.importDataset( datasetRoot );
+                return String.format(
+                        "Imported %d nodes and %d relationships (%d ms transform, %d ms import)",
+                        result.nodes(), result.relationships(),
+                        result.transformMillis(), result.importMillis() );
+            } catch ( IOException e ) {
+                throw new GenericRuntimeException( "Bulk load failed", e );
+            }
+        }
+
+
+        private PhysicalGraph singleGraph() {
+            List<PhysicalGraph> graphs = adapterCatalog.physicals.values().stream()
+                    .filter( PhysicalGraph.class::isInstance )
+                    .map( PhysicalGraph.class::cast )
+                    .toList();
+            if ( graphs.size() != 1 ) {
+                throw new GenericRuntimeException(
+                        "Bulk load needs exactly one graph on this adapter, found " + graphs.size() );
+            }
+            return graphs.get( 0 );
         }
 
 

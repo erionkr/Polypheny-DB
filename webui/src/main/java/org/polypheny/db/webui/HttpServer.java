@@ -328,6 +328,7 @@ public class HttpServer implements Runnable {
 
         webuiServer.post( "/removeAdapter", crud::removeAdapter );
         webuiServer.post( "/resetAdapterData", crud::resetAdapterData );
+        webuiServer.post( "/bulkLoadAdapter", crud::bulkLoadAdapter );
 
         webuiServer.post( "/updateAdapterSettings", crud::updateAdapterSettings );
 

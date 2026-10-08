@@ -76,6 +76,7 @@ import org.polypheny.db.adapter.AdapterManager.AdapterInformation;
 import org.polypheny.db.adapter.ConnectionMethod;
 import org.polypheny.db.adapter.DataSource;
 import org.polypheny.db.adapter.DataStore;
+import org.polypheny.db.adapter.BulkLoadable;
 import org.polypheny.db.adapter.Resettable;
 import org.polypheny.db.adapter.DataStore.FunctionalIndexInfo;
 import org.polypheny.db.adapter.RelationalDataSource.ExportedColumn;
@@ -2212,6 +2213,53 @@ public class Crud implements InformationObserver, PropertyChangeListener {
             log.error( "Failed to reset data of adapter {}", uniqueName, e );
             ctx.status( 500 ).json( RelationalResult.builder()
                     .error( "Failed to reset adapter: " + e.getMessage() )
+                    .build() );
+        }
+    }
+
+
+
+
+    /**
+     * Loads a dataset into an adapter through the underlying store's own bulk loader.
+     * <p>
+     * Expects a body of the form {@code <uniqueName>|<datasetPath>}. Only adapters implementing
+     * {@link org.polypheny.db.adapter.BulkLoadable} support this.
+     */
+    void bulkLoadAdapter( final Context ctx ) {
+        String[] parts = ctx.body().split( "\\|", 2 );
+        if ( parts.length != 2 ) {
+            ctx.status( 400 ).json( RelationalResult.builder()
+                    .error( "Expected a body of the form '<uniqueName>|<datasetPath>'." )
+                    .build() );
+            return;
+        }
+        String uniqueName = parts[0];
+        String datasetPath = parts[1];
+
+        Optional<Adapter<?>> adapter = AdapterManager.getInstance().getAdapter( uniqueName );
+        if ( adapter.isEmpty() ) {
+            ctx.status( 404 ).json( RelationalResult.builder()
+                    .error( "There is no adapter with the unique name '" + uniqueName + "'." )
+                    .build() );
+            return;
+        }
+
+        if ( !(adapter.get() instanceof BulkLoadable loadable) ) {
+            ctx.status( 400 ).json( RelationalResult.builder()
+                    .error( "The adapter '" + uniqueName + "' does not support bulk loading." )
+                    .build() );
+            return;
+        }
+
+        try {
+            String summary = loadable.bulkLoad( Path.of( datasetPath ) );
+            log.info( "Bulk load into {}: {}", uniqueName, summary );
+            ctx.json( RelationalResult.builder().query( summary ).affectedTuples( 0 ).build() );
+        } catch ( Exception e ) {
+            log.error( "Bulk load into adapter {} failed", uniqueName, e );
+            ctx.status( 500 ).json( RelationalResult.builder()
+                    .error( "Bulk load failed: " + e.getMessage() )
                     .build() );
         }
     }
