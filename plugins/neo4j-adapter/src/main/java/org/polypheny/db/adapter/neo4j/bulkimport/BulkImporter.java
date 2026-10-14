@@ -84,8 +84,10 @@ public class BulkImporter {
         requireLocalDockerHost();
 
         Path csvDirectory = Files.createTempDirectory( "polypheny-neo4j-bulk-" );
-        // The Neo4j image runs as its own user and refuses to start when it cannot read a
-        // mounted folder, so the transformed CSVs have to be world-readable.
+        // The Neo4j entrypoint checks mounted folders against the neo4j user even though it
+        // starts as root, and unlike /data and /logs it does not correct the ownership of
+        // /import. A temp directory is 0700 and owned by whoever runs Polypheny, so the check
+        // fails unless the everyone-read bit is set.
         makeWorldReadable( csvDirectory );
         try {
             long transformStarted = System.nanoTime();
@@ -233,12 +235,26 @@ public class BulkImporter {
 
 
 
+    /**
+     * Makes a directory readable by anyone.
+     * <p>
+     * The Neo4j entrypoint verifies that it can read every mounted folder, and it does so as the
+     * {@code neo4j} user even while still running as root. For {@code /data} and {@code /logs} it
+     * takes ownership when needed, but a folder mounted at {@code /import} is only checked, never
+     * corrected. Passing a user id would not help either: the container always starts as root and
+     * drops privileges itself, and the Polypheny Docker protocol has no field for one.
+     */
     private static void makeWorldReadable( Path path ) throws IOException {
         Files.setPosixFilePermissions( path, PosixFilePermissions.fromString( "rwxr-xr-x" ) );
     }
 
 
 
+    /**
+     * Makes every file in a directory readable by anyone, for the reasons given on
+     * {@link #makeWorldReadable(Path)}. The directory permissions alone are not enough, since the
+     * entrypoint checks the files it finds inside as well.
+     */
     private static void makeFilesWorldReadable( Path directory ) throws IOException {
         try (var files = Files.list( directory )) {
             for ( Path file : files.toList() ) {
