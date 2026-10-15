@@ -137,4 +137,45 @@ public class LdbcCsvTransformerTest {
         assertEquals( ":START_ID(Place)|:END_ID(Place)|_id|__sourceId__|__targetId__", lines.get( 0 ) );
     }
 
+
+    @Test
+    public void nodeCarriesItsIdAsAProperty( @TempDir Path tmp ) throws IOException {
+        Path source = tmp.resolve( "person_0_0.csv" );
+        Files.writeString( source, """
+                id|firstName
+                933|Mahinda
+                """, StandardCharsets.UTF_8 );
+
+        Path target = tmp.resolve( "person.csv" );
+        EntitySpec.Node spec = new EntitySpec.Node( "dynamic/person_0_0.csv", "Person" );
+
+        new LdbcCsvTransformer( NAMESPACE_LABEL ).transformNodes( source, target, spec );
+
+        // Polypheny reads the id from this property, not from the neo4j-admin identifier.
+        List<String> lines = Files.readAllLines( target );
+        assertEquals( ":ID(Person)|_id|firstName|:LABEL", lines.get( 0 ) );
+        assertEquals( "933|933|Mahinda|___n_4___;Person", lines.get( 1 ) );
+    }
+
+
+    @Test
+    public void edgeCarriesItsEndpointsAsProperties( @TempDir Path tmp ) throws IOException {
+        Path source = tmp.resolve( "person_knows_person_0_0.csv" );
+        Files.writeString( source, """
+                Person.id|Person.id|creationDate
+                933|1129|1271939457947
+                """, StandardCharsets.UTF_8 );
+
+        Path target = tmp.resolve( "knows.csv" );
+        EntitySpec.Edge spec = new EntitySpec.Edge(
+                "dynamic/person_knows_person_0_0.csv", "KNOWS", "Person", "Person" );
+
+        new LdbcCsvTransformer( NAMESPACE_LABEL ).transformEdges( source, target, spec );
+
+        List<String> lines = Files.readAllLines( target );
+        assertEquals(
+                ":START_ID(Person)|:END_ID(Person)|_id|__sourceId__|__targetId__|creationDate:long",
+                lines.get( 0 ) );
+        assertEquals( "933|1129|933_1129|933|1129|1271939457947", lines.get( 1 ) );
+    }
 }
