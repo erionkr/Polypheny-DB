@@ -72,7 +72,8 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
     public void implement( NeoGraphImplementor implementor ) {
         implementor.visitChild( 0, getInput() );
         if ( implementor.getLast() instanceof LpgProject || implementor.getLast() instanceof NeoLpgMatch ) {
-            OperatorStatement last = implementor.removeLast();
+            // The MATCH this aggregate sits on top of used to be removed here, and never put
+            // back, so the WITH below referred to variables that no longer existed.
             List<String> finalRow = new ArrayList<>();
             for ( AlgDataTypeField ignored : getTupleType().getFields() ) {
                 finalRow.add( null );
@@ -82,7 +83,7 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
             List<String> currentNames = getTupleType().getFieldNames();
 
             for ( RexNameRef name : groups ) {
-                finalRow.set( currentNames.indexOf( name.name ), name.name );
+                finalRow.set( currentNames.indexOf( name.name ), name.name + " AS " + name.name.replace( ".", "_" ) );
             }
             for ( LaxAggregateCall agg : aggCalls ) {
                 List<String> refs = new ArrayList<>();

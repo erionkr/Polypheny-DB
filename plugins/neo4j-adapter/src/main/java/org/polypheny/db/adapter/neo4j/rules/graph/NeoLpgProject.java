@@ -62,7 +62,9 @@ public class NeoLpgProject extends LpgProject implements NeoGraphAlg {
             for ( RexNode project : getProjects() ) {
                 Translator translator = new Translator( getTupleType(), implementor.getLast().getTupleType(), new HashMap<>(), null, implementor.getGraph().mappingLabel, false );
                 String name = project.accept( translator );
-                if ( names.get( i ) != null && !name.equals( names.get( i ).value ) && !names.get( i ).value.contains( "." ) && !name.equals( "*" ) ) {
+                // A name containing a dot used to skip the alias. That works in a RETURN, where
+                // Neo4j names the column itself, but a WITH rejects an unaliased expression.
+                if ( names.get( i ) != null && !name.equals( names.get( i ).value ) && !name.equals( "*" ) ) {
                     statements.add( as_( literal_( PolyString.of( project.accept( translator ) ) ), literal_( names.get( i ) ) ) );
                 } else {
                     statements.add( literal_( PolyString.of( project.accept( translator ) ) ) );
