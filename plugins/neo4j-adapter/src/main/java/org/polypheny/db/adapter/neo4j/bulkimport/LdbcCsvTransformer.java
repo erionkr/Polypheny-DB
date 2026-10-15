@@ -93,6 +93,9 @@ public class LdbcCsvTransformer {
 
             List<String> outHeader = new ArrayList<>();
             outHeader.add( ":ID(" + spec.label() + ")" );
+            // Polypheny reads a node's id from a "_id" property rather than from the identifier
+            // neo4j-admin assigns, so the id is written twice.
+            outHeader.add( "_id" );
             for ( int i : propertyIndices ) {
                 outHeader.add( annotate( header.get( i ) ) );
             }
@@ -105,6 +108,7 @@ public class LdbcCsvTransformer {
                 List<String> fields = split( line );
 
                 List<String> row = new ArrayList<>();
+                row.add( fields.get( idIndex ) );
                 row.add( fields.get( idIndex ) );
                 for ( int i : propertyIndices ) {
                     row.add( fields.get( i ) );
@@ -155,6 +159,10 @@ public class LdbcCsvTransformer {
             List<String> outHeader = new ArrayList<>();
             outHeader.add( ":START_ID(" + spec.startSpace() + ")" );
             outHeader.add( ":END_ID(" + spec.endSpace() + ")" );
+            // Polypheny expects an edge to carry its own id and both endpoints as properties.
+            outHeader.add( "_id" );
+            outHeader.add( "__sourceId__" );
+            outHeader.add( "__targetId__" );
             for ( int i : propertyIndices ) {
                 outHeader.add( annotate( header.get( i ) ) );
             }
@@ -166,8 +174,13 @@ public class LdbcCsvTransformer {
                 List<String> fields = split( line );
 
                 List<String> row = new ArrayList<>();
-                row.add( fields.get( startIndex ) );
-                row.add( fields.get( endIndex ) );
+                String start = fields.get( startIndex );
+                String end = fields.get( endIndex );
+                row.add( start );
+                row.add( end );
+                row.add( start + "_" + end );
+                row.add( start);
+                row.add( end );
                 for ( int i : propertyIndices ) {
                     row.add( fields.get( i ) );
                 }

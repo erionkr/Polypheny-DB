@@ -48,9 +48,9 @@ public class LdbcCsvTransformerTest {
 
         assertEquals( 2, rows );
         List<String> lines = Files.readAllLines( target );
-        assertEquals( ":ID(Organisation)|name|url|:LABEL", lines.get( 0 ) );
-        assertEquals( "0|Kam_Air|http://dbpedia.org/resource/Kam_Air|___n_4___;Organisation;Company", lines.get( 1 ) );
-        assertEquals( "1|Balkh_University|http://dbpedia.org/resource/Balkh_University|___n_4___;Organisation;University", lines.get( 2 ) );
+        assertEquals( ":ID(Organisation)|_id|name|url|:LABEL", lines.get( 0 ) );
+        assertEquals( "0|0|Kam_Air|http://dbpedia.org/resource/Kam_Air|___n_4___;Organisation;Company", lines.get( 1 ) );
+        assertEquals( "1|1|Balkh_University|http://dbpedia.org/resource/Balkh_University|___n_4___;Organisation;University", lines.get( 2 ) );
     }
 
 
@@ -71,7 +71,7 @@ public class LdbcCsvTransformerTest {
         assertEquals( 1, rows );
         List<String> lines = Files.readAllLines( target );
         assertEquals(
-                ":ID(Comment)|creationDate:long|locationIP|browserUsed|content|length:long|:LABEL",
+                ":ID(Comment)|_id|creationDate:long|locationIP|browserUsed|content|length:long|:LABEL",
                 lines.get( 0 ) );
         assertTrue( lines.get( 1 ).endsWith( "___n_4___;Comment;Message" ) );
     }
@@ -113,8 +113,8 @@ public class LdbcCsvTransformerTest {
 
         assertEquals( 1, rows );
         List<String> lines = Files.readAllLines( target );
-        assertEquals( ":START_ID(Person)|:END_ID(Person)|creationDate:long", lines.get( 0 ) );
-        assertEquals( "933|2199023256077|1271939457947", lines.get( 1 ) );
+        assertEquals( ":START_ID(Person)|:END_ID(Person)|_id|__sourceId__|__targetId__|creationDate:long", lines.get( 0 ) );
+        assertEquals( "933|2199023256077|933_2199023256077|933|2199023256077|1271939457947", lines.get( 1 ) );
     }
 
 
@@ -134,7 +134,7 @@ public class LdbcCsvTransformerTest {
 
         assertEquals( 1, rows );
         List<String> lines = Files.readAllLines( target );
-        assertEquals( ":START_ID(Place)|:END_ID(Place)", lines.get( 0 ) );
+        assertEquals( ":START_ID(Place)|:END_ID(Place)|_id|__sourceId__|__targetId__", lines.get( 0 ) );
     }
 
 }
