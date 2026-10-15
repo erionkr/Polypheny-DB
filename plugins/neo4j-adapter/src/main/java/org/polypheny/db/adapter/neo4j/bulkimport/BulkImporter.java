@@ -26,7 +26,11 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.polypheny.db.docker.DockerContainer;
 import org.polypheny.db.docker.DockerInstance;
-
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 /**
  * Pre-fills a Neo4j store from an LDBC SNB dataset using Neo4j's offline bulk loader.
  * <p>
@@ -129,27 +133,56 @@ public class BulkImporter {
     private TransformResult transform( Path datasetRoot, Path csvDirectory ) throws IOException {
         LdbcCsvTransformer transformer = new LdbcCsvTransformer( namespaceLabel );
 
-        long nodeRows = 0;
+        // The entities are independent of each other: each reads one file and writes another,
+        // so they are converted in parallel. On a dataset of any size this is the difference
+        // between one core working and all of them.
+        List<Callable<long[]>> tasks = new ArrayList<>();
+
         for ( EntitySpec.Node spec : LdbcSchema.nodes() ) {
-            Path source = datasetRoot.resolve( spec.sourceFile() );
-            Path target = csvDirectory.resolve( spec.outputFile() );
-            long rows = transformer.transformNodes( source, target, spec );
-            log.debug( "Transformed {} rows for {}", rows, spec.label() );
-            nodeRows += rows;
+            tasks.add( () -> {
+                long rows = transformer.transformNodes(
+                        datasetRoot.resolve( spec.sourceFile() ),
+                        csvDirectory.resolve( spec.outputFile() ),
+                        spec );
+                log.debug( "Transformed {} rows for {}", rows, spec.label() );
+                return new long[]{ rows, 0 };
+            } );
         }
 
-        long edgeRows = 0;
         for ( EntitySpec.Edge spec : LdbcSchema.edges() ) {
-            Path source = datasetRoot.resolve( spec.sourceFile() );
-            Path target = csvDirectory.resolve( spec.outputFile() );
-            long rows = transformer.transformEdges( source, target, spec );
-            log.debug( "Transformed {} rows for {}", rows, spec.type() );
-            edgeRows += rows;
+            tasks.add( () -> {
+                long rows = transformer.transformEdges(
+                        datasetRoot.resolve( spec.sourceFile() ),
+                        csvDirectory.resolve( spec.outputFile() ),
+                        spec );
+                log.debug( "Transformed {} rows for {}", rows, spec.type() );
+                return new long[]{ 0, rows };
+            } );
+        }
+
+        int threads = Math.min( tasks.size(), Runtime.getRuntime().availableProcessors() );
+        ExecutorService pool = Executors.newFixedThreadPool( threads );
+
+        long nodeRows = 0;
+        long edgeRows = 0;
+        try {
+            for ( Future<long[]> result : pool.invokeAll( tasks ) ) {
+                long[] counts = result.get();
+                nodeRows += counts[0];
+                edgeRows += counts[1];
+            }
+        } catch ( InterruptedException e ) {
+            Thread.currentThread().interrupt();
+            throw new IOException( "Transformation was interrupted", e );
+        } catch ( ExecutionException e ) {
+            Throwable cause = e.getCause();
+            throw new IOException( "Transformation failed: " + cause.getMessage(), cause );
+        } finally {
+            pool.shutdown();
         }
 
         return new TransformResult( nodeRows, edgeRows );
     }
-
 
     private void runImport( Path csvDirectory ) throws IOException {
         DockerContainer importer = dockerInstance
