@@ -158,6 +158,7 @@ public class Neo4jPlugin extends PolyPlugin {
     @AdapterSettingInteger(name = "port", defaultValue = 7687, appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "user", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
     @AdapterSettingString(name = "password", defaultValue = "neo4j", appliesTo = DeploySetting.REMOTE)
+    @AdapterSettingString(name = "mappingLabel", defaultValue = "", required = false, description = "Label marking the nodes of this namespace in Neo4j. Leave empty to derive it from the namespace id.")
     public static class Neo4jStore extends DataStore<GraphAdapterCatalog> implements Resettable, BulkLoadable {
 
         private final String DEFAULT_DATABASE = "public";
@@ -545,6 +546,19 @@ public class Neo4jPlugin extends PolyPlugin {
 
 
         /**
+         * The label marking which nodes belong to a namespace.
+         * <p>
+         * Neo4j Community has no namespaces, so Polypheny attaches a label to every node instead.
+         * It is derived from the namespace id by default, but can be set explicitly, which matters
+         * when the data is written by something other than Polypheny.
+         */
+        public String resolveMappingLabel( long id ) {
+            String configured = settings.get( "mappingLabel" );
+            return configured == null || configured.isBlank() ? getMappingLabel( id ) : configured;
+        }
+
+
+        /**
          * Loads an LDBC SNB Interactive dataset through Neo4j's offline bulk loader.
          * <p>
          * The adapter has to hold exactly one graph: the dataset is pre-filled into the store as
@@ -566,7 +580,7 @@ public class Neo4jPlugin extends PolyPlugin {
                     instance,
                     "polypheny/neo:latest",
                     getDataVolumeName( getUniqueName() ),
-                    getMappingLabel( graph.id ) );
+                    resolveMappingLabel( graph.id ) );
 
             // neo4j-admin import refuses to touch a store that is in use, so the serving
             // container has to go down for the duration of the import.
@@ -639,14 +653,14 @@ public class Neo4jPlugin extends PolyPlugin {
                     logical,
                     allocation );
 
-            this.adapterCatalog.addPhysical( allocation, new NeoGraph( physical, List.of(), this.transactionProvider, this.db, getMappingLabel( physical.id ), this ) );
+            this.adapterCatalog.addPhysical( allocation, new NeoGraph( physical, List.of(), this.transactionProvider, this.db, resolveMappingLabel( physical.id ), this ) );
             return refreshGraph( allocation.id );
         }
 
 
         public List<PhysicalEntity> refreshGraph( long allocId ) {
             PhysicalGraph physical = adapterCatalog.fromAllocation( allocId, PhysicalGraph.class );
-            adapterCatalog.replacePhysical( new NeoGraph( physical, List.of(), this.transactionProvider, this.db, getMappingLabel( physical.id ), this ) );
+            adapterCatalog.replacePhysical( new NeoGraph( physical, List.of(), this.transactionProvider, this.db, resolveMappingLabel( physical.id ), this ) );
             return List.of( physical );
         }
 
@@ -657,7 +671,7 @@ public class Neo4jPlugin extends PolyPlugin {
             PhysicalGraph physical = adapterCatalog.fromAllocation( allocation.id, PhysicalGraph.class );
             executeDdlTrx(
                     context.getStatement().getTransaction().getXid(),
-                    String.format( "MATCH (n:%s) DETACH DELETE n", getMappingLabel( physical.id ) ) );
+                    String.format( "MATCH (n:%s) DETACH DELETE n", resolveMappingLabel( physical.id ) ) );
         }
 
 
