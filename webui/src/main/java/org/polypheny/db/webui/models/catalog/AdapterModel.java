@@ -32,6 +32,7 @@ import org.polypheny.db.adapter.DataStore;
 import org.polypheny.db.adapter.DataStore.IndexMethodModel;
 import org.polypheny.db.adapter.DeployMode;
 import org.polypheny.db.catalog.entity.LogicalAdapter;
+import org.polypheny.db.adapter.BulkLoadable;
 import org.polypheny.db.catalog.entity.LogicalAdapter.AdapterType;
 
 
@@ -61,6 +62,13 @@ public class AdapterModel extends IdEntity {
     @JsonProperty
     public boolean dataReadOnly;
 
+    /**
+     * Whether a dataset can be loaded into this adapter through its own bulk loader, which lets
+     * the UI offer that without knowing anything about the adapter itself.
+     */
+    @JsonProperty
+    public boolean supportsBulkLoad;
+
 
     public AdapterModel(
             @JsonProperty("id") @Nullable Long id,
@@ -71,7 +79,8 @@ public class AdapterModel extends IdEntity {
             @JsonProperty("mode") DeployMode mode,
             @JsonProperty("indexMethods") List<IndexMethodModel> indexMethods,
             @JsonProperty("persistent") boolean persistent,
-            @JsonProperty("dataReadOnly") boolean dataReadOnly ) {
+            @JsonProperty("dataReadOnly") boolean dataReadOnly,
+            @JsonProperty("supportsBulkLoad") boolean supportsBulkLoad ) {
         super( id, name );
         this.adapterName = adapterName;
         this.type = type;
@@ -80,6 +89,7 @@ public class AdapterModel extends IdEntity {
         this.indexMethods = indexMethods;
         this.persistent = persistent;
         this.dataReadOnly = dataReadOnly;
+        this.supportsBulkLoad = supportsBulkLoad;
     }
 
 
@@ -97,7 +107,8 @@ public class AdapterModel extends IdEntity {
                 adapter.mode,
                 adapter.type == AdapterType.STORE ? ((DataStore<?>) dataStore).getAvailableIndexMethods() : List.of(),
                 adapter.type == AdapterType.STORE && ((DataStore<?>) dataStore).isPersistent(),
-                adapter.type == AdapterType.SOURCE && ((DataSource<?>) dataStore).isDataReadOnly()
+                adapter.type == AdapterType.SOURCE && ((DataSource<?>) dataStore).isDataReadOnly(),
+                dataStore instanceof BulkLoadable
         ) ).orElse( null );
 
     }
