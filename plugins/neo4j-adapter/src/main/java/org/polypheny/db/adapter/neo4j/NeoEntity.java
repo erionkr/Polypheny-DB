@@ -255,7 +255,7 @@ public class NeoEntity extends PhysicalEntity implements TranslatableEntity, Mod
 
 
         static Function1<Record, PolyValue[]> getter( NestedPolyType types ) {
-            return NeoUtil.getTypesFunction( types );
+            return NeoUtil.getTypesFunction( types, null );
         }
 
 

@@ -195,7 +195,7 @@ public class NeoGraph extends PhysicalGraph implements TranslatableEntity, Modif
             List<Result> results = new ArrayList<>();
             results.add( trx.run( query ) );
 
-            Function1<Record, PolyValue[]> getter = NeoQueryable.getter( types );
+            Function1<Record, PolyValue[]> getter = getter( types );
 
             return new AbstractEnumerable<>() {
                 @Override
@@ -220,7 +220,7 @@ public class NeoGraph extends PhysicalGraph implements TranslatableEntity, Modif
 
             dataContext.getStatement().getTransaction().registerInvolvedAdapter( graph.store );
 
-            Map<PolyString, PolyNode> polyNodes = trx.run( nodes ).list().stream().map( n -> NeoUtil.asPolyNode( n.get( 0 ).asNode() ) ).collect( Collectors.toMap( n -> n.id, n -> n ) );
+            Map<PolyString, PolyNode> polyNodes = trx.run( nodes ).list().stream().map( n -> NeoUtil.asPolyNode( n.get( 0 ).asNode(), graph.mappingLabel ) ).collect( Collectors.toMap( n -> n.id, n -> n ) );
             Map<PolyString, PolyEdge> polyEdges = trx.run( edges ).list().stream().map( e -> NeoUtil.asPolyEdge( e.get( 0 ).asRelationship() ) ).collect( Collectors.toMap( e -> e.id, e -> e ) );
 
             return Functions.singletonEnumerable( new PolyValue[]{ new PolyGraph( PolyMap.of( polyNodes ), PolyMap.of( polyEdges ) ) } );
@@ -233,9 +233,9 @@ public class NeoGraph extends PhysicalGraph implements TranslatableEntity, Modif
          * @param types the types for which function is created
          * @return the function, which transforms the {@link Record}
          */
-        static <T> Function1<Record, T> getter( NestedPolyType types ) {
+        <T> Function1<Record, T> getter( NestedPolyType types ) {
             //noinspection unchecked
-            return (Function1<Record, T>) NeoUtil.getTypesFunction( types );
+            return (Function1<Record, T>) NeoUtil.getTypesFunction( types, graph.mappingLabel );
         }
 
 

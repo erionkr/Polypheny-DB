@@ -91,8 +91,8 @@ import org.polypheny.db.util.UnsupportedRexCallVisitor;
 
 public interface NeoUtil {
 
-    static Function1<Value, PolyValue> getTypeFunction( NestedPolyType type, boolean isNested ) {
-        Function1<Value, PolyValue> getter = getUnnullableTypeFunction( type, isNested );
+    static Function1<Value, PolyValue> getTypeFunction( NestedPolyType type, boolean isNested, String mappingLabel ) {
+        Function1<Value, PolyValue> getter = getUnnullableTypeFunction( type, isNested, mappingLabel );
         return o -> {
             if ( o.isNull() ) {
                 return PolyNull.NULL;
@@ -101,7 +101,7 @@ public interface NeoUtil {
         };
     }
 
-    static Function1<Value, PolyValue> getUnnullableTypeFunction( NestedPolyType type, boolean isNested ) {
+    static Function1<Value, PolyValue> getUnnullableTypeFunction( NestedPolyType type, boolean isNested, String mappingLabel ) {
 
         return switch ( type.getType() ) {
             case NULL -> o -> PolyNull.NULL;
@@ -123,20 +123,20 @@ public interface NeoUtil {
                 if ( isNested ) {
                     yield v -> PolyValue.fromTypedJson( v.asString(), PolyList.class );
                 }
-                Function1<Value, PolyValue> componentFunc = getTypeFunction( type.asList().types.get( 0 ), true );
+                Function1<Value, PolyValue> componentFunc = getTypeFunction( type.asList().types.get( 0 ), true, mappingLabel );
                 yield el -> PolyList.of( el.asList( componentFunc::apply ) );
             }
             case MAP -> value -> PolyString.of( value.asString() );
             case DOCUMENT, JSON -> value -> PolyDocument.deserialize( value.asString() );
             case GRAPH -> o -> (PolyValue) o;
-            case NODE -> o -> asPolyNode( o.asNode() );
+            case NODE -> o -> asPolyNode( o.asNode(), mappingLabel );
             case EDGE -> o -> asPolyEdge( o.asRelationship() );
             case PATH -> o -> {
 
                 if ( o instanceof ListValue ) {
-                    return asPolyPath( ((InternalPath) o.asList().get( 0 )), type.asList().names );
+                    return asPolyPath( ((InternalPath) o.asList().get( 0 )), type.asList().names, mappingLabel );
                 }
-                return asPolyPath( o.asPath(), type.asList().names );
+                return asPolyPath( o.asPath(), type.asList().names, mappingLabel );
             };
             case GEOMETRY -> NeoUtil::asPolyGeometry;
             default -> throw new GenericRuntimeException( String.format( "Object of type %s was not transformable.", type ) );
@@ -173,14 +173,14 @@ public interface NeoUtil {
         throw new GenericRuntimeException( String.format( "Could not transform object of type %s to PolyGeometry", value.type() ) );
     }
 
-    static PolyPath asPolyPath( Path path, List<String> names ) {
+    static PolyPath asPolyPath( Path path, List<String> names, String mappingLabel ) {
         Iterator<Node> nodeIter = path.nodes().iterator();
         Iterator<Relationship> edgeIter = path.relationships().iterator();
         Iterator<String> nameIter = names.iterator();
         List<Pair<PolyString, PolyNode>> nodes = new ArrayList<>();
         List<Pair<PolyString, PolyEdge>> edges = new ArrayList<>();
         while ( nodeIter.hasNext() ) {
-            nodes.add( Pair.of( nameIter.hasNext() ? PolyString.of( nameIter.next() ) : null, asPolyNode( nodeIter.next() ) ) );
+            nodes.add( Pair.of( nameIter.hasNext() ? PolyString.of( nameIter.next() ) : null, asPolyNode( nodeIter.next(), mappingLabel ) ) );
             if ( nodeIter.hasNext() ) {
                 edges.add( Pair.of( null, asPolyEdge( edgeIter.next() ) ) );
             }
@@ -191,18 +191,21 @@ public interface NeoUtil {
                 edges );
     }
 
-    static PolyNode asPolyNode( Node node ) {
+    /**
+     * @param mappingLabel the label marking the namespace this node belongs to, which is an
+     * implementation detail and does not belong in the result. May be null outside a graph.
+     */
+    static PolyNode asPolyNode( Node node, String mappingLabel ) {
         Map<PolyString, PolyValue> map = new HashMap<>( node.asMap( NeoUtil::getComparableOrString ).entrySet().stream().collect( Collectors.toMap( e -> PolyString.of( e.getKey() ), Entry::getValue ) ) );
         PolyString id = map.remove( PolyString.of( "_id" ) ).asString();
         List<PolyString> labels = new ArrayList<>();
         node.labels().forEach( e -> {
-            if ( !e.startsWith( "__namespace" ) && !e.endsWith( "__" ) ) {
+            if ( !e.equals( mappingLabel ) ) {
                 labels.add( PolyString.of( e ) );
             }
         } );
         return new PolyNode( id, new PolyDictionary( map ), labels, null );
     }
-
 
     static PolyEdge asPolyEdge( Relationship relationship ) {
         Map<PolyString, PolyValue> map = new HashMap<>( relationship.asMap( NeoUtil::getComparableOrString ).entrySet().stream().collect( Collectors.toMap( e -> PolyString.of( e.getKey() ), Entry::getValue ) ) );
@@ -240,11 +243,11 @@ public interface NeoUtil {
         throw new NotImplementedException( "Type not supported" );
     }
 
-    static Function1<Record, PolyValue[]> getTypesFunction( NestedPolyType types ) {
+    static Function1<Record, PolyValue[]> getTypesFunction( NestedPolyType types, String mappingLabel ) {
 
         List<Function1<Value, PolyValue>> functions = new ArrayList<>();
         for ( NestedPolyType type : types.asList().types ) {
-            functions.add( getTypeFunction( type, false ) );
+            functions.add( getTypeFunction( type, false, mappingLabel ) );
         }
         if ( functions.size() == 1 ) {
             // SCALAR
