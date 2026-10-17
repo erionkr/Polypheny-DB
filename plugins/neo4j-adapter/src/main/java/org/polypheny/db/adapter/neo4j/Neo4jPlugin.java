@@ -289,7 +289,11 @@ public class Neo4jPlugin extends PolyPlugin {
 
                 transactionProvider.commitDdlTransaction();
             } catch ( Exception e ) {
-                transactionProvider.rollbackDdlTransaction();
+                try {
+                    transactionProvider.rollbackDdlTransaction();
+                } catch ( Exception rollbackFailure ) {
+                    e.addSuppressed( rollbackFailure );
+                }
                 throw new GenericRuntimeException( e );
             }
         }

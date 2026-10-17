@@ -128,9 +128,15 @@ public class TransactionProvider {
     }
 
 
+    /**
+     * Rolls back the DDL transaction, if there is one.
+     * <p>
+     * A failed statement can leave the transaction closed already, and this is called from a
+     * catch block, so treating that as an error would replace the exception being handled.
+     */
     public void rollbackDdlTransaction() {
-        if ( !ddlTransaction.isOpen() ) {
-            throw new GenericRuntimeException( "There is no ongoing DDL transaction!" );
+        if ( ddlTransaction == null || !ddlTransaction.isOpen() ) {
+            return;
         }
         ddlTransaction.rollback();
         ddlTransaction.close();
