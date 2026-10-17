@@ -604,7 +604,7 @@ public class Neo4jPlugin extends PolyPlugin {
                         result.nodes(), result.relationships(),
                         result.transformMillis(), result.importMillis() );
             } catch ( IOException e ) {
-                throw new GenericRuntimeException( "Bulk load failed: " + e.getMessage(), e );
+                throw new GenericRuntimeException( e.getMessage(), e );
             } finally {
                 // Whether or not the import worked, the store has to be reachable again
                 // afterwards, so the container is always brought back up.

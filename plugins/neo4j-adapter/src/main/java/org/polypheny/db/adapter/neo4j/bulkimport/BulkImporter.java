@@ -86,6 +86,7 @@ public class BulkImporter {
      */
     public ImportResult importDataset( Path datasetRoot ) throws IOException {
         requireLocalDockerHost();
+        requireReadableDataset( datasetRoot );
 
         Path csvDirectory = Files.createTempDirectory( "polypheny-neo4j-bulk-" );
         // The Neo4j entrypoint checks mounted folders against the neo4j user even though it
@@ -111,6 +112,23 @@ public class BulkImporter {
                     transformed.nodeRows(), transformed.edgeRows(), transformMillis, importMillis );
         } finally {
             deleteRecursively( csvDirectory );
+        }
+    }
+
+
+    /**
+     * Checks the dataset before any work starts, so a wrong path is reported as such instead of
+     * surfacing as a missing file halfway through the transformation.
+     */
+    private void requireReadableDataset( Path datasetRoot ) throws IOException {
+        if ( !Files.isDirectory( datasetRoot ) ) {
+            throw new IOException( "No dataset directory at " + datasetRoot );
+        }
+        Path marker = datasetRoot.resolve( LdbcSchema.nodes().get( 0 ).sourceFile() );
+        if ( !Files.isReadable( marker ) ) {
+            throw new IOException( String.format(
+                    "%s does not look like an LDBC SNB Interactive dataset: expected to find %s",
+                    datasetRoot, marker.getFileName() ) );
         }
     }
 
