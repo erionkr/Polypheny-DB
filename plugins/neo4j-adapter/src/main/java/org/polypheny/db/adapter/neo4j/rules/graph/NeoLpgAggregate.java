@@ -72,8 +72,12 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
     public void implement( NeoGraphImplementor implementor ) {
         implementor.visitChild( 0, getInput() );
         if ( implementor.getLast() instanceof LpgProject || implementor.getLast() instanceof NeoLpgMatch ) {
-            // The MATCH this aggregate sits on top of used to be removed here, and never put
-            // back, so the WITH below referred to variables that no longer existed.
+            // A projection below an aggregate has already emitted a WITH, and that WITH ends the
+            // binding of the node variable the aggregate still needs. The aggregate builds its own
+            // projection, so that statement goes; a MATCH below has to stay.
+            if ( implementor.getLast() instanceof LpgProject ) {
+                implementor.removeLast();
+            }
             List<String> finalRow = new ArrayList<>();
             for ( AlgDataTypeField ignored : getTupleType().getFields() ) {
                 finalRow.add( null );

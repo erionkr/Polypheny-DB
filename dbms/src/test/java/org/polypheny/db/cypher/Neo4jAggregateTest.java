@@ -24,7 +24,6 @@ import java.sql.Statement;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.polypheny.db.TestHelper.JdbcConnection;
@@ -99,7 +98,6 @@ public class Neo4jAggregateTest extends CypherTestTemplate {
         containsRows( res, true, true, Row.of( TestLiteral.from( 2 ) ) );
     }
 
-    @Disabled( "The alias is in place, but the query still loses the binding for n before the RETURN." )
 
     @Test
     public void countWithGroupingTest() {
