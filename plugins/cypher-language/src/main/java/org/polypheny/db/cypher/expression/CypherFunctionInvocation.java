@@ -157,6 +157,19 @@ public class CypherFunctionInvocation extends CypherExpression {
                                 // Because create function logic is implemented in
                                 arguments.get( 1 ).getRex( context, RexType.PROJECT ).getRight()
                         ) );
+            case COALESCE: {
+                // The Neo4j adapter already writes this one back out as Cypher, so the generic
+                // operator carries it through unchanged. The arguments all hold the same kind of
+                // value, so the first one's type stands for the result; leaving it unknown loses
+                // the value on the way back.
+                List<RexNode> coalesced = getArguments().stream()
+                        .map( a -> a.getRex( context, RexType.PROJECT ).getRight() )
+                        .toList();
+                return new RexCall(
+                        coalesced.get( 0 ).getType(),
+                        OperatorRegistry.get( OperatorName.COALESCE ),
+                        coalesced );
+            }
             default:
                 throw new NotImplementedException( "Cypher Function to alg conversion missing: " + getOperatorName() );
         }
