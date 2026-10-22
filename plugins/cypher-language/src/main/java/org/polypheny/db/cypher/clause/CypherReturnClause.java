@@ -198,12 +198,14 @@ public class CypherReturnClause extends CypherClause {
 
         Integer skip = null;
         if ( this.skip != null ) {
-            skip = this.skip.getComparable().asInteger().value;
+            // Literals are read as long, but a skip or limit past the int range is not something
+            // a query means, so the narrower type the sort expects is fine here.
+            skip = this.skip.getComparable().asNumber().intValue();
         }
 
         Integer limit = null;
         if ( this.limit != null ) {
-            limit = this.limit.getComparable().asInteger().value;
+            limit = this.limit.getComparable().asNumber().intValue();
         }
 
         AlgTraitSet traitSet = node.getTraitSet().replace( collation );
