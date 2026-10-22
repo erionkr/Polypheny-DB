@@ -48,9 +48,9 @@ public class LdbcCsvTransformerTest {
 
         assertEquals( 2, rows );
         List<String> lines = Files.readAllLines( target );
-        assertEquals( ":ID(Organisation)|_id|name|url|:LABEL", lines.get( 0 ) );
-        assertEquals( "0|0|Kam_Air|http://dbpedia.org/resource/Kam_Air|___n_4___;Organisation;Company", lines.get( 1 ) );
-        assertEquals( "1|1|Balkh_University|http://dbpedia.org/resource/Balkh_University|___n_4___;Organisation;University", lines.get( 2 ) );
+        assertEquals( ":ID(Organisation)|_id|id:long|name|url|:LABEL", lines.get( 0 ) );
+        assertEquals( "0|0|0|Kam_Air|http://dbpedia.org/resource/Kam_Air|___n_4___;Organisation;Company", lines.get( 1 ) );
+        assertEquals( "1|1|1|Balkh_University|http://dbpedia.org/resource/Balkh_University|___n_4___;Organisation;University", lines.get( 2 ) );
     }
 
 
@@ -71,7 +71,7 @@ public class LdbcCsvTransformerTest {
         assertEquals( 1, rows );
         List<String> lines = Files.readAllLines( target );
         assertEquals(
-                ":ID(Comment)|_id|creationDate:long|locationIP|browserUsed|content|length:long|:LABEL",
+                ":ID(Comment)|_id|id:long|creationDate:long|locationIP|browserUsed|content|length:long|:LABEL",
                 lines.get( 0 ) );
         assertTrue( lines.get( 1 ).endsWith( "___n_4___;Comment;Message" ) );
     }
@@ -151,10 +151,11 @@ public class LdbcCsvTransformerTest {
 
         new LdbcCsvTransformer( NAMESPACE_LABEL ).transformNodes( source, target, spec );
 
-        // Polypheny reads the id from this property, not from the neo4j-admin identifier.
+        // The id goes in three times: the neo4j-admin identifier, the _id Polypheny reads, and
+        // the id LDBC queries filter on.
         List<String> lines = Files.readAllLines( target );
-        assertEquals( ":ID(Person)|_id|firstName|:LABEL", lines.get( 0 ) );
-        assertEquals( "933|933|Mahinda|___n_4___;Person", lines.get( 1 ) );
+        assertEquals( ":ID(Person)|_id|id:long|firstName|:LABEL", lines.get( 0 ) );
+        assertEquals( "933|933|933|Mahinda|___n_4___;Person", lines.get( 1 ) );
     }
 
 

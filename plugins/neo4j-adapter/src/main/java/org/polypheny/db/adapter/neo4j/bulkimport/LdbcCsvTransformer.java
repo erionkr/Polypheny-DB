@@ -93,9 +93,11 @@ public class LdbcCsvTransformer {
 
             List<String> outHeader = new ArrayList<>();
             outHeader.add( ":ID(" + spec.label() + ")" );
-            // Polypheny reads a node's id from a "_id" property rather than from the identifier
-            // neo4j-admin assigns, so the id is written twice.
+            // The id is written three times: once as the identifier neo4j-admin links on, once as
+            // the "_id" property Polypheny reads it from, and once as "id", which is what LDBC
+            // defines and what its queries filter on.
             outHeader.add( "_id" );
+            outHeader.add( "id:long" );
             for ( int i : propertyIndices ) {
                 outHeader.add( annotate( header.get( i ) ) );
             }
@@ -108,6 +110,7 @@ public class LdbcCsvTransformer {
                 List<String> fields = split( line );
 
                 List<String> row = new ArrayList<>();
+                row.add( fields.get( idIndex ) );
                 row.add( fields.get( idIndex ) );
                 row.add( fields.get( idIndex ) );
                 for ( int i : propertyIndices ) {
