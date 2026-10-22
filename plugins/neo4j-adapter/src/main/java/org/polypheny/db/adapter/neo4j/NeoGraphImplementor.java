@@ -142,11 +142,10 @@ public class NeoGraphImplementor extends AlgShuttleImpl {
             } else if ( statement.type == StatementType.WITH ) {
                 // can replace
                 statements.remove( statements.size() - 1 );
-                if ( getLast() instanceof NeoLpgProject ) {
-                    statements.add( return_( NeoLpgModify.buildReturnProject( (LpgProject) getLast(), getGraph().mappingLabel ) ) );
-                } else {
-                    statements.add( return_( statement.statements ) );
-                }
+                // The WITH being replaced already carries the aliases the projection set, and an
+                // ORDER BY after it refers to them by name. Rebuilding the projection here dropped
+                // those, so the sort pointed at something that no longer existed.
+                statements.add( return_( statement.statements ) );
             } else {
                 // have to add
                 statements.add( return_( getFields( last.getTupleType() ) ) );
