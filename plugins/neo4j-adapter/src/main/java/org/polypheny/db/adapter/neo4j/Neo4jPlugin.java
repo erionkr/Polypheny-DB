@@ -147,6 +147,18 @@ public class Neo4jPlugin extends PolyPlugin {
     }
 
 
+    /**
+     * A duration in a unit that fits it. A bulk load runs for seconds or minutes, so milliseconds
+     * say nothing to whoever reads the result.
+     */
+    static String humanDuration( long millis ) {
+        if ( millis < 60_000 ) {
+            return String.format( "%.1f s", millis / 1000.0 );
+        }
+        return String.format( "%d min %d s", millis / 60_000, (millis % 60_000) / 1000 );
+    }
+
+
     @Slf4j
     @Extension
     @AdapterProperties(
@@ -600,9 +612,9 @@ public class Neo4jPlugin extends PolyPlugin {
             try {
                 BulkImporter.ImportResult result = importer.importDataset( datasetRoot );
                 return String.format(
-                        "Imported %d nodes and %d relationships (%d ms transform, %d ms import)",
+                        "Imported %,d nodes and %,d relationships (%s transform, %s import)",
                         result.nodes(), result.relationships(),
-                        result.transformMillis(), result.importMillis() );
+                        humanDuration( result.transformMillis() ), humanDuration( result.importMillis() ) );
             } catch ( IOException e ) {
                 throw new GenericRuntimeException( e.getMessage(), e );
             } finally {
