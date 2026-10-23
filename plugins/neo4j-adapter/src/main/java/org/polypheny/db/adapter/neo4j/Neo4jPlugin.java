@@ -40,6 +40,8 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 import org.pf4j.Extension;
+import java.util.function.Consumer;
+import org.polypheny.db.adapter.BulkLoadProgress;
 import org.polypheny.db.adapter.AdapterManager;
 import org.polypheny.db.adapter.DataStore;
 import org.polypheny.db.adapter.DataStore.IndexMethodModel;
@@ -581,7 +583,7 @@ public class Neo4jPlugin extends PolyPlugin {
          * a whole, so there is no way to tell which of several graphs it should end up in.
          */
         @Override
-        public String bulkLoad( Path datasetRoot ) {
+        public String bulkLoad( Path datasetRoot, Consumer<BulkLoadProgress> onProgress ) {
             if ( deployMode != DeployMode.DOCKER ) {
                 throw new GenericRuntimeException(
                         "Bulk load is only supported for Docker deployments, not " + deployMode.name() );
@@ -596,7 +598,8 @@ public class Neo4jPlugin extends PolyPlugin {
                     instance,
                     "polypheny/neo:latest",
                     getDataVolumeName( getUniqueName() ),
-                    resolveMappingLabel( graph.id ) );
+                    resolveMappingLabel( graph.id ),
+                    onProgress );
 
             // neo4j-admin import refuses to touch a store that is in use, so the serving
             // container has to go down for the duration of the import.
@@ -604,6 +607,7 @@ public class Neo4jPlugin extends PolyPlugin {
             session.close();
             db.close();
             try {
+                onProgress.accept( BulkLoadProgress.of( "stopping the store" ) );
                 container.stop();
             } catch ( IOException e ) {
                 throw new GenericRuntimeException( "Could not stop the Neo4j container", e );
@@ -620,6 +624,7 @@ public class Neo4jPlugin extends PolyPlugin {
             } finally {
                 // Whether or not the import worked, the store has to be reachable again
                 // afterwards, so the container is always brought back up.
+                onProgress.accept( BulkLoadProgress.of( "starting the store" ) );
                 restoreConnection();
             }
         }

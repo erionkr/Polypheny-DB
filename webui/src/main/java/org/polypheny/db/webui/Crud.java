@@ -2253,7 +2253,9 @@ public class Crud implements InformationObserver, PropertyChangeListener {
         }
 
         try {
-            String summary = loadable.bulkLoad( Path.of( datasetPath ) );
+            String summary = loadable.bulkLoad( Path.of( datasetPath ),
+                    p -> log.info( "Bulk load into {}: {}{}", uniqueName, p.phase(),
+                            p.step() == null ? "" : " " + p.step() + "/" + p.total() ) );
             log.info( "Bulk load into {}: {}", uniqueName, summary );
             ctx.json( RelationalResult.builder().query( summary ).affectedTuples( 0 ).build() );
         } catch ( Exception e ) {

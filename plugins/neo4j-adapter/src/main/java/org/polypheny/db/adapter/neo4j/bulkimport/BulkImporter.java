@@ -31,6 +31,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import org.polypheny.db.adapter.BulkLoadProgress;
+
 /**
  * Pre-fills a Neo4j store from an LDBC SNB dataset using Neo4j's offline bulk loader.
  * <p>
@@ -57,7 +61,7 @@ public class BulkImporter {
     private final String imageName;
     private final String dataVolume;
     private final String namespaceLabel;
-
+    private final Consumer<BulkLoadProgress> onProgress;
 
     /**
      * @param dockerInstance the Docker instance hosting the Neo4j containers
@@ -69,11 +73,13 @@ public class BulkImporter {
             DockerInstance dockerInstance,
             String imageName,
             String dataVolume,
-            String namespaceLabel ) {
+            String namespaceLabel,
+            Consumer<BulkLoadProgress> onProgress ) {
         this.dockerInstance = dockerInstance;
         this.imageName = imageName;
         this.dataVolume = dataVolume;
         this.namespaceLabel = namespaceLabel;
+        this.onProgress = onProgress;
     }
 
 
@@ -101,6 +107,9 @@ public class BulkImporter {
 
             makeFilesWorldReadable( csvDirectory );
 
+            // neo4j-admin reports nothing until it is done, so this phase can only say that it
+            // is running, not how far along it is.
+            onProgress.accept( BulkLoadProgress.of( "importing" ) );
             long importStarted = System.nanoTime();
             runImport( csvDirectory );
             long importMillis = (System.nanoTime() - importStarted) / 1_000_000;
@@ -156,6 +165,12 @@ public class BulkImporter {
         // between one core working and all of them.
         List<Callable<long[]>> tasks = new ArrayList<>();
 
+        // Each task reports as it finishes, from whichever thread ran it, so the count has to be
+        // atomic. The order they finish in says nothing, but the number does.
+        int total = LdbcSchema.nodes().size() + LdbcSchema.edges().size();
+        AtomicInteger done = new AtomicInteger();
+        onProgress.accept( BulkLoadProgress.of( "transforming", 0, total ) );
+
         for ( EntitySpec.Node spec : LdbcSchema.nodes() ) {
             tasks.add( () -> {
                 long rows = transformer.transformNodes(
@@ -163,6 +178,7 @@ public class BulkImporter {
                         csvDirectory.resolve( spec.outputFile() ),
                         spec );
                 log.debug( "Transformed {} rows for {}", rows, spec.label() );
+                onProgress.accept( BulkLoadProgress.of( "transforming", done.incrementAndGet(), total ) );
                 return new long[]{ rows, 0 };
             } );
         }
@@ -174,6 +190,7 @@ public class BulkImporter {
                         csvDirectory.resolve( spec.outputFile() ),
                         spec );
                 log.debug( "Transformed {} rows for {}", rows, spec.type() );
+                onProgress.accept( BulkLoadProgress.of( "transforming", done.incrementAndGet(), total ) );
                 return new long[]{ 0, rows };
             } );
         }
