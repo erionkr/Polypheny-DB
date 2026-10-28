@@ -162,9 +162,11 @@ import org.polypheny.db.util.Pair;
 import org.polypheny.db.util.PolyphenyHomeDirManager;
 import org.polypheny.db.webui.auth.AuthCrud;
 import org.polypheny.db.webui.crud.CatalogCrud;
+import org.polypheny.db.webui.crud.BulkLoadCrud;
 import org.polypheny.db.webui.crud.LanguageCrud;
 import org.polypheny.db.webui.crud.LanguageCrud.TriFunction;
 import org.polypheny.db.webui.crud.StatisticCrud;
+import org.polypheny.db.webui.models.BulkLoadJobModel;
 import org.polypheny.db.webui.models.DbTable;
 import org.polypheny.db.webui.models.ForeignKey;
 import org.polypheny.db.webui.models.IndexAdapterModel;
@@ -2252,19 +2254,27 @@ public class Crud implements InformationObserver, PropertyChangeListener {
             return;
         }
 
-        try {
-            String summary = loadable.bulkLoad( Path.of( datasetPath ),
-                    p -> log.info( "Bulk load into {}: {}{}", uniqueName, p.phase(),
-                            p.step() == null ? "" : " " + p.step() + "/" + p.total() ) );
-            log.info( "Bulk load into {}: {}", uniqueName, summary );
-            ctx.json( RelationalResult.builder().query( summary ).affectedTuples( 0 ).build() );
-        } catch ( Exception e ) {
-            log.error( "Bulk load into adapter {} failed", uniqueName, e );
-            ctx.status( 500 ).json( RelationalResult.builder()
-                    .error( "Bulk load failed: " + e.getMessage() )
-                    .build() );
-        }
+
+        ctx.json( BulkLoadCrud.getInstance().start( uniqueName, loadable, Path.of( datasetPath ) ) );
     }
+
+
+    /**
+     * Reports how far a bulk load has got.
+     * <p>
+     * Jobs are kept in memory, so one started before a restart is simply unknown afterwards.
+     */
+    void bulkLoadStatus( final Context ctx ) {
+        BulkLoadJobModel job = BulkLoadCrud.getInstance().get( ctx.pathParam( "jobId" ) );
+        if ( job == null ) {
+            ctx.status( 404 ).json( RelationalResult.builder()
+                    .error( "There is no bulk load with this id." )
+                    .build() );
+            return;
+        }
+        ctx.json( job );
+    }
+
 
 
     void getQueryInterfaces( final Context ctx ) {
