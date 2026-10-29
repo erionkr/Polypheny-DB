@@ -95,6 +95,8 @@ public class CypherRegisterer {
 
         register( OperatorName.CYPHER_WITHIN_GEOMETRY, new LangFunctionOperator( "CYPHER_WITHIN_GEOMETRY", Kind.CYPHER_FUNCTION, PolyType.BOOLEAN ) );
 
+        register( OperatorName.CYPHER_TOINTEGER, new LangFunctionOperator( "CYPHER_TOINTEGER", Kind.CYPHER_FUNCTION, PolyType.BIGINT ) );
+
         isInit = true;
     }
 

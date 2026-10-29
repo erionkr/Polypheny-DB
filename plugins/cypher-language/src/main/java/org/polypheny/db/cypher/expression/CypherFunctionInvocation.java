@@ -34,6 +34,7 @@ import org.polypheny.db.languages.ParserPos;
 import org.polypheny.db.languages.QueryLanguage;
 import org.polypheny.db.rex.RexCall;
 import org.polypheny.db.rex.RexNode;
+import org.polypheny.db.type.PolyType;
 import org.polypheny.db.type.entity.PolyString;
 import org.polypheny.db.util.Pair;
 
@@ -170,6 +171,11 @@ public class CypherFunctionInvocation extends CypherExpression {
                         OperatorRegistry.get( OperatorName.COALESCE ),
                         coalesced );
             }
+            case CYPHER_TOINTEGER:
+                return new RexCall(
+                        context.typeFactory.createPolyType( PolyType.BIGINT ),
+                        OperatorRegistry.get( QueryLanguage.from( "cypher" ), OperatorName.CYPHER_TOINTEGER ),
+                        getArguments().get( 0 ).getRex( context, RexType.PROJECT ).getRight() );
             default:
                 throw new NotImplementedException( "Cypher Function to alg conversion missing: " + getOperatorName() );
         }

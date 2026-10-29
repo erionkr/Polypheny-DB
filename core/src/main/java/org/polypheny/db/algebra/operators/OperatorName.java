@@ -1728,6 +1728,8 @@ public enum OperatorName {
 
     CYPHER_WITHIN_GEOMETRY( LangFunctionOperator.class ),
 
+    CYPHER_TOINTEGER( LangFunctionOperator.class ),
+
     DISTANCE_NEO4J( LangFunctionOperator.class ),
 
     // CROSS MODEL FUNCTION
