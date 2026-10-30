@@ -286,6 +286,13 @@ public class Neo4jPlugin extends PolyPlugin {
 
             try {
                 this.db.verifyConnectivity();
+                // The Bolt port answers before the database behind it does, and after a bulk
+                // load that gap is long enough to report the store as ready while queries still
+                // fail with "Database 'neo4j' is unavailable". A real query is the only way to
+                // tell the difference.
+                try ( Session probe = this.db.session() ) {
+                    probe.run( "RETURN 1" ).consume();
+                }
                 return true;
             } catch ( Exception e ) {
                 return false;
