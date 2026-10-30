@@ -83,10 +83,20 @@ public class CypherRelPattern extends CypherPattern {
 
         PolyEdge edge = new PolyEdge( properties, PolyList.copyOf( labels ), leftId, rightId, direction, PolyString.of( name ) );
         if ( pathLength != null ) {
-            edge.fromTo( Pair.of( Integer.parseInt( pathLength.getFrom() ), Integer.parseInt( pathLength.getTo() ) ) );
+            // A bound can be left out, as in *0.. or *..3, and arrives as an empty string.
+            // PolyEdge already reads a missing one as null; only the parsing assumed both.
+            edge.fromTo( Pair.of( boundOrNull( pathLength.getFrom() ), boundOrNull( pathLength.getTo() ) ) );
         }
 
         return Pair.of( PolyString.of( name ), edge );
+    }
+
+
+    /**
+     * A path-length bound, or null where the pattern left it open.
+     */
+    private static Integer boundOrNull( String bound ) {
+        return bound == null || bound.isEmpty() ? null : Integer.parseInt( bound );
     }
 
 
