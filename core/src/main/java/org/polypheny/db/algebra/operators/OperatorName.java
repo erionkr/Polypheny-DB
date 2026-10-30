@@ -1730,6 +1730,12 @@ public enum OperatorName {
 
     CYPHER_TOINTEGER( LangFunctionOperator.class ),
 
+    CYPHER_TOFLOAT( LangFunctionOperator.class ),
+
+    CYPHER_FLOOR( LangFunctionOperator.class ),
+
+    CYPHER_SIZE( LangFunctionOperator.class ),
+
     DISTANCE_NEO4J( LangFunctionOperator.class ),
 
     // CROSS MODEL FUNCTION

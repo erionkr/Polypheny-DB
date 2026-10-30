@@ -18,6 +18,8 @@ package org.polypheny.db.cypher.clause;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -37,6 +39,7 @@ import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.CypherContext;
 import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.RexType;
 import org.polypheny.db.cypher.expression.CypherAggregate;
 import org.polypheny.db.cypher.expression.CypherExpression;
+import org.polypheny.db.cypher.expression.CypherFunctionInvocation;
 import org.polypheny.db.cypher.expression.CypherProperty;
 import org.polypheny.db.languages.ParserPos;
 import org.polypheny.db.plan.AlgTraitSet;
@@ -216,6 +219,50 @@ public class CypherReturnClause extends CypherClause {
 
     public List<String> getSortFields() {
         return order.stream().map( o -> o.getExpression().getName() ).toList();
+    }
+
+
+    /**
+     * The sort terms that are calls rather than plain names, by the name each one goes under.
+     * <p>
+     * A call has to be computed before it can be sorted on, so the converter adds a column for
+     * it; this is what that column holds.
+     */
+    public Map<String, CypherExpression> getSortExpressions() {
+        Map<String, CypherExpression> expressions = new HashMap<>();
+        for ( CypherOrderItem item : order ) {
+            if ( item.getExpression() instanceof CypherFunctionInvocation call ) {
+                expressions.put( call.getName(), resolveAliases( call ) );
+            }
+        }
+        return expressions;
+    }
+
+
+    /**
+     * The same call with any alias in its arguments replaced by what that alias stands for.
+     * <p>
+     * ORDER BY runs after RETURN and can name its aliases, but the column holding the sort term
+     * is computed from the input, where only the original expressions exist.
+     */
+    private CypherExpression resolveAliases( CypherFunctionInvocation call ) {
+        List<CypherExpression> resolved = new ArrayList<>();
+        for ( CypherExpression argument : call.getArguments() ) {
+            resolved.add( behindAlias( argument ) );
+        }
+        return call.withArguments( resolved );
+    }
+
+
+    private CypherExpression behindAlias( CypherExpression expression ) {
+        for ( CypherReturn returnItem : returnItems ) {
+            if ( returnItem instanceof CypherReturnItem item
+                    && item.getVariable() != null
+                    && item.getVariable().getName().equals( expression.getName() ) ) {
+                return item.getExpression();
+            }
+        }
+        return expression;
     }
 
 }

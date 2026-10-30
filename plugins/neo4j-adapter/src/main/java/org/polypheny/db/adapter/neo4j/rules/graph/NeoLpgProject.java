@@ -28,6 +28,7 @@ import java.util.List;
 import org.polypheny.db.adapter.neo4j.NeoGraphImplementor;
 import org.polypheny.db.adapter.neo4j.rules.NeoGraphAlg;
 import org.polypheny.db.adapter.neo4j.util.NeoStatements.NeoStatement;
+import org.polypheny.db.adapter.neo4j.util.NeoStatements.StatementType;
 import org.polypheny.db.adapter.neo4j.util.Translator;
 import org.polypheny.db.algebra.AlgNode;
 import org.polypheny.db.algebra.core.lpg.LpgProject;
@@ -74,7 +75,14 @@ public class NeoLpgProject extends LpgProject implements NeoGraphAlg {
             }
 
             if ( implementor.isSorted() ) {
-                implementor.replaceReturn( return_( list_( statements ) ) );
+                // A projection after the sort keeps the sort where it is: in Cypher that reads
+                // WITH ... ORDER BY ... RETURN, and the RETURN is simply appended. Only when the
+                // sort already carries the final RETURN is there one to replace.
+                if ( implementor.statements.stream().anyMatch( s -> s.type == StatementType.RETURN ) ) {
+                    implementor.replaceReturn( return_( list_( statements ) ) );
+                } else {
+                    implementor.add( return_( list_( statements ) ) );
+                }
                 return;
             }
 

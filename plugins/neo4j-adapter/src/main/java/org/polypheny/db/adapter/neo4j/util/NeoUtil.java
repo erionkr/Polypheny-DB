@@ -348,6 +348,9 @@ public interface NeoUtil {
             case POWER -> o -> String.format( "%s^%s", o.get( 0 ), o.get( 1 ) );
             case SQRT -> o -> String.format( "sqrt(%s)", o.get( 0 ) );
             case CYPHER_TOINTEGER -> o -> String.format( "toInteger(%s)", o.get( 0 ) );
+            case CYPHER_TOFLOAT -> o -> String.format( "toFloat(%s)", o.get( 0 ) );
+            case CYPHER_FLOOR -> o -> String.format( "floor(toFloat(%s))", o.get( 0 ) );
+            case CYPHER_SIZE -> o -> String.format( "size(%s)", o.get( 0 ) );
             case MOD -> o -> o.get( 0 ) + " % " + o.get( 1 );
             case LOG10 -> o -> String.format( "log10(toFloat(%s))", o.get( 0 ) );
             case ABS -> o -> String.format( "abs(toFloat(%s))", o.get( 0 ) );

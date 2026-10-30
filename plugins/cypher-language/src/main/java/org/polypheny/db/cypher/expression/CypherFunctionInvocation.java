@@ -70,6 +70,24 @@ public class CypherFunctionInvocation extends CypherExpression {
     }
 
 
+    private CypherFunctionInvocation( CypherFunctionInvocation original, List<CypherExpression> arguments ) {
+        super( original.pos );
+        this.namePos = original.namePos;
+        this.namespace = original.namespace;
+        this.op = original.op;
+        this.distinct = original.distinct;
+        this.arguments = arguments;
+    }
+
+
+    /**
+     * The same call with different arguments.
+     */
+    public CypherFunctionInvocation withArguments( List<CypherExpression> arguments ) {
+        return new CypherFunctionInvocation( this, arguments );
+    }
+
+
     public ImmutableList<CypherExpression> getArguments() {
         return ImmutableList.copyOf( arguments );
     }
@@ -77,6 +95,22 @@ public class CypherFunctionInvocation extends CypherExpression {
 
     public OperatorName getOperatorName() {
         return op;
+    }
+
+
+    /**
+     * A name for this call, built from the function and its argument.
+     * <p>
+     * ORDER BY identifies what to sort by through names, and a function call has none of its
+     * own. This gives it one that is stable for the same call written twice, which is what the
+     * hidden column added for it is keyed on.
+     */
+    @Override
+    public String getName() {
+        // The name ends up as a column name, which Neo4j reads as an identifier, so it cannot
+        // carry the brackets and dots the call is written with.
+        return ("__" + getOperatorName().name() + "_" + getArguments().get( 0 ).getName())
+                .replaceAll( "[^A-Za-z0-9_]", "_" );
     }
 
 
@@ -171,14 +205,30 @@ public class CypherFunctionInvocation extends CypherExpression {
                         OperatorRegistry.get( OperatorName.COALESCE ),
                         coalesced );
             }
+            // These take one argument and hand it to the store unchanged. The adapter knows how
+            // to write each one back out, so the only thing needed here is the return type.
             case CYPHER_TOINTEGER:
-                return new RexCall(
-                        context.typeFactory.createPolyType( PolyType.BIGINT ),
-                        OperatorRegistry.get( QueryLanguage.from( "cypher" ), OperatorName.CYPHER_TOINTEGER ),
-                        getArguments().get( 0 ).getRex( context, RexType.PROJECT ).getRight() );
+                return oneArgument( context, PolyType.BIGINT );
+            case CYPHER_TOFLOAT:
+                return oneArgument( context, PolyType.DOUBLE );
+            case CYPHER_FLOOR:
+                return oneArgument( context, PolyType.DOUBLE );
+            case CYPHER_SIZE:
+                return oneArgument( context, PolyType.BIGINT );
             default:
                 throw new NotImplementedException( "Cypher Function to alg conversion missing: " + getOperatorName() );
         }
+    }
+
+
+    /**
+     * A call to this function with its single argument, typed as given.
+     */
+    private RexNode oneArgument( CypherContext context, PolyType returnType ) {
+        return new RexCall(
+                context.typeFactory.createPolyType( returnType ),
+                OperatorRegistry.get( QueryLanguage.from( "cypher" ), getOperatorName() ),
+                getArguments().get( 0 ).getRex( context, RexType.PROJECT ).getRight() );
     }
 
 }

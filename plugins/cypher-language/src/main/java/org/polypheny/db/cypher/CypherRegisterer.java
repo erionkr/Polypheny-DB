@@ -97,6 +97,12 @@ public class CypherRegisterer {
 
         register( OperatorName.CYPHER_TOINTEGER, new LangFunctionOperator( "CYPHER_TOINTEGER", Kind.CYPHER_FUNCTION, PolyType.BIGINT ) );
 
+        register( OperatorName.CYPHER_TOFLOAT, new LangFunctionOperator( "CYPHER_TOFLOAT", Kind.CYPHER_FUNCTION, PolyType.DOUBLE ) );
+
+        register( OperatorName.CYPHER_FLOOR, new LangFunctionOperator( "CYPHER_FLOOR", Kind.CYPHER_FUNCTION, PolyType.DOUBLE ) );
+
+        register( OperatorName.CYPHER_SIZE, new LangFunctionOperator( "CYPHER_SIZE", Kind.CYPHER_FUNCTION, PolyType.BIGINT ) );
+
         isInit = true;
     }
 

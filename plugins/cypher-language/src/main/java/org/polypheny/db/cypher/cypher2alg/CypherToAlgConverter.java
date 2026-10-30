@@ -70,6 +70,7 @@ import org.polypheny.db.cypher.clause.CypherSetClause;
 import org.polypheny.db.cypher.clause.CypherUnwind;
 import org.polypheny.db.cypher.clause.CypherWhere;
 import org.polypheny.db.cypher.clause.CypherWith;
+import org.polypheny.db.cypher.expression.CypherExpression;
 import org.polypheny.db.cypher.pattern.CypherPattern;
 import org.polypheny.db.cypher.query.CypherSingleQuery;
 import org.polypheny.db.languages.OperatorRegistry;
@@ -251,7 +252,7 @@ public class CypherToAlgConverter {
 
             if ( !missingNames.isEmpty() ) {
                 // hidden names are used for sort but are not yet present
-                node = addHiddenRows( context, node, missingNames );
+                node = addHiddenRows( context, node, missingNames, clause.getSortExpressions() );
             }
 
             context.add( node );
@@ -280,7 +281,8 @@ public class CypherToAlgConverter {
     }
 
 
-    private AlgNode addHiddenRows( CypherContext context, AlgNode node, List<String> missingNames ) {
+    private AlgNode addHiddenRows( CypherContext context, AlgNode node, List<String> missingNames,
+            Map<String, CypherExpression> sortExpressions ) {
 
         AlgNode input;
         if ( node instanceof LogicalLpgProject ) {
@@ -290,6 +292,20 @@ public class CypherToAlgConverter {
         }
 
         List<Pair<PolyString, RexNode>> additional = new ArrayList<>();
+        // A call is not bound to any one input field, so it is built from the expression itself
+        // rather than looked up among them. Translating it needs the input on the stack, which
+        // the caller only pushes afterwards.
+        if ( !sortExpressions.isEmpty() ) {
+            context.add( input );
+            for ( Map.Entry<String, CypherExpression> entry : sortExpressions.entrySet() ) {
+                if ( missingNames.contains( entry.getKey() ) ) {
+                    additional.add( Pair.of(
+                            PolyString.of( entry.getKey() ),
+                            entry.getValue().getRex( context, RexType.PROJECT ).getRight() ) );
+                }
+            }
+            context.pop();
+        }
         for ( AlgDataTypeField field : input.getTupleType().getFields() ) {
             for ( String name : missingNames ) {
                 String[] split = name.split( "\\." );

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.polypheny.db.adapter.neo4j.NeoGraphImplementor;
 import org.polypheny.db.adapter.neo4j.rules.NeoGraphAlg;
+import org.polypheny.db.adapter.neo4j.util.NeoStatements.StatementType;
 import org.polypheny.db.adapter.neo4j.util.NeoStatements;
 import org.polypheny.db.algebra.AlgCollation;
 import org.polypheny.db.algebra.AlgFieldCollation;
@@ -63,7 +64,14 @@ public class NeoLpgSort extends LpgSort implements NeoGraphAlg {
     @Override
     public void implement( NeoGraphImplementor implementor ) {
         implementor.visitChild( 0, getInput() );
-        implementor.addReturnIfNecessary();
+        // A sort on a computed value reads WITH ... ORDER BY ... RETURN in Cypher: the column
+        // holding that value is dropped again by the projection that follows, so the WITH it
+        // sits in has to stay one. Without such a column the sort carries the final RETURN.
+        boolean sortsOnComputedValue = getInput().getTupleType().getFieldNames().stream()
+                .anyMatch( name -> name.startsWith( "__CYPHER_" ) );
+        if ( !sortsOnComputedValue ) {
+            implementor.addReturnIfNecessary();
+        }
         implementor.setSorted( true );
 
         List<String> lastNames = implementor.getLast().getTupleType().getFieldNames();
