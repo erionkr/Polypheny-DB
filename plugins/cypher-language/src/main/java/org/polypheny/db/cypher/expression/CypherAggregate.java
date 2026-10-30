@@ -46,7 +46,7 @@ public class CypherAggregate extends CypherExpression {
         this.op = op;
         this.target = target;
         this.distinct = distinct;
-        if ( this.op != OperatorName.COUNT && distinct ) {
+        if ( this.op != OperatorName.COUNT && this.op != OperatorName.COLLECT && distinct ) {
             throw new GenericRuntimeException( "Only count([name]) aggregations can be DISTINCT." );
         }
     }

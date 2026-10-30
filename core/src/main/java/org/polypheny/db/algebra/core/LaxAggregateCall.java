@@ -91,6 +91,9 @@ public class LaxAggregateCall {
         return switch ( function.getKind() ) {
             case COUNT -> cluster.getTypeFactory().createPolyType( PolyType.BIGINT );
             case SUM, AVG, MIN, MAX -> cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true );
+            // collect gathers its input into a list rather than reducing it to one value.
+            case COLLECT -> cluster.getTypeFactory().createArrayType(
+                    cluster.getTypeFactory().createPolyType( PolyType.ANY ), -1 );
             default -> null;
         };
     }
