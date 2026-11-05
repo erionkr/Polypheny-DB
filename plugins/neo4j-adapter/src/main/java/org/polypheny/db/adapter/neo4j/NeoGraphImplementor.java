@@ -104,7 +104,9 @@ public class NeoGraphImplementor extends AlgShuttleImpl {
 
 
     public String build() {
-        if ( !sorted ) {
+        // A sort leaves the final RETURN to the projection that follows it, but when none does
+        // the query would end on a WITH, which Cypher rejects.
+        if ( statements.stream().noneMatch( s -> s.type == StatementType.RETURN ) ) {
             addReturnIfNecessary();
         }
 
