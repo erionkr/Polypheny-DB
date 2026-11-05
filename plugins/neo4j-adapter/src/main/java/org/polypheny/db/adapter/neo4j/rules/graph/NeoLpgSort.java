@@ -64,12 +64,13 @@ public class NeoLpgSort extends LpgSort implements NeoGraphAlg {
     @Override
     public void implement( NeoGraphImplementor implementor ) {
         implementor.visitChild( 0, getInput() );
-        // A sort on a computed value reads WITH ... ORDER BY ... RETURN in Cypher: the column
-        // holding that value is dropped again by the projection that follows, so the WITH it
-        // sits in has to stay one. Without such a column the sort carries the final RETURN.
-        boolean sortsOnComputedValue = getInput().getTupleType().getFieldNames().stream()
-                .anyMatch( name -> name.startsWith( "__CYPHER_" ) );
-        if ( !sortsOnComputedValue ) {
+        // A sort may need a column the projection after it drops again: a computed value, or
+        // a property the RETURN renamed. In Cypher that reads WITH ... ORDER BY ... RETURN, so
+        // the WITH holding that column has to stay one. Without such a column the sort carries
+        // the final RETURN itself.
+        boolean needsHiddenColumn = getInput().getTupleType().getFieldNames().stream()
+                .anyMatch( name -> name.startsWith( "__CYPHER_" ) || name.contains( "." ) );
+        if ( !needsHiddenColumn ) {
             implementor.addReturnIfNecessary();
         }
         implementor.setSorted( true );

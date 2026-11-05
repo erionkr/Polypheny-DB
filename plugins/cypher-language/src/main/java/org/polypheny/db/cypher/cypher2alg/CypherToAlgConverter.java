@@ -83,6 +83,7 @@ import org.polypheny.db.rex.RexLiteral;
 import org.polypheny.db.rex.RexNode;
 import org.polypheny.db.tools.AlgBuilder;
 import org.polypheny.db.transaction.Statement;
+import org.polypheny.db.type.PathType;
 import org.polypheny.db.type.PolyType;
 import org.polypheny.db.type.entity.PolyList;
 import org.polypheny.db.type.entity.PolyString;
@@ -315,6 +316,20 @@ public class CypherToAlgConverter {
                 } else if ( name.equals( field.getName() ) ) {
                     // missing field ( edge, node, string, etc )
                     additional.add( Pair.of( PolyString.of( name ), context.rexBuilder.makeInputRef( field.getType(), field.getIndex() ) ) );
+                } else if ( split.length > 1 && field.getType() instanceof PathType ) {
+                    // A match pattern is one field holding its variables, so the subject of a
+                    // property is looked for inside it rather than among the fields themselves.
+                    for ( AlgDataTypeField inner : field.getType().getFields() ) {
+                        if ( inner.getName().equals( split[0] ) ) {
+                            RexNode fromPath = context.rexBuilder.makeCall(
+                                    inner.getType(),
+                                    OperatorRegistry.get( QueryLanguage.from( "cypher" ), OperatorName.CYPHER_EXTRACT_FROM_PATH ),
+                                    List.of(
+                                            context.rexBuilder.makeInputRef( field.getType(), field.getIndex() ),
+                                            context.rexBuilder.makeLiteral( inner.getName() ) ) );
+                            additional.add( context.getPropertyExtract( split[1], split[0], fromPath ) );
+                        }
+                    }
                 }
             }
         }
