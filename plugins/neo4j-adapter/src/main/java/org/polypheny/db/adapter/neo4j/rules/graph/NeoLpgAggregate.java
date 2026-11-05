@@ -101,7 +101,11 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
                     i = currentNames.indexOf( agg.function.getOperatorName().name() );
                 }
 
-                finalRow.set( i, Objects.requireNonNull( NeoUtil.getOpAsNeo( agg.function.getOperatorName(), List.of(), null, List.of() ) ).apply( refs ) );
+                // A WITH rejects an unaliased expression, and the name is what a later clause
+                // refers to, so the aggregate carries one just as the groups above do.
+                String aggregate = Objects.requireNonNull(
+                        NeoUtil.getOpAsNeo( agg.function.getOperatorName(), List.of(), null, List.of() ) ).apply( refs );
+                finalRow.set( i, aggregate + " AS " + currentNames.get( i ).replace( ".", "_" ) );
             }
 
             implementor.add( with_( list_( finalRow.stream().map( e -> literal_( PolyString.of( e ) ) ).toList() ) ) );
