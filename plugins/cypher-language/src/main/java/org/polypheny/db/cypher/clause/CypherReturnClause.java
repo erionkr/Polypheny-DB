@@ -35,6 +35,7 @@ import org.polypheny.db.algebra.logical.lpg.LogicalLpgProject;
 import org.polypheny.db.algebra.logical.lpg.LogicalLpgSort;
 import org.polypheny.db.algebra.type.AlgDataType;
 import org.polypheny.db.algebra.type.AlgDataTypeFactory;
+import org.polypheny.db.catalog.exceptions.GenericRuntimeException;
 import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.CypherContext;
 import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.RexType;
 import org.polypheny.db.cypher.expression.CypherAggregate;
@@ -194,9 +195,12 @@ public class CypherReturnClause extends CypherClause {
 
         for ( Pair<Direction, String> item : orders ) {
             int index = node.getTupleType().getFieldNames().indexOf( item.right );
+            if ( index < 0 ) {
+                throw new GenericRuntimeException(
+                        "Cannot sort by " + item.right + ": it is not among " + node.getTupleType().getFieldNames() );
+            }
             collations.add( new AlgFieldCollation( index, item.left ) );
         }
-
         AlgCollation collation = AlgCollations.of( collations );
 
         Integer skip = null;
