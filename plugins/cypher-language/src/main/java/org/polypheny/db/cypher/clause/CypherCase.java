@@ -18,6 +18,15 @@ package org.polypheny.db.cypher.clause;
 
 import java.util.List;
 import lombok.Getter;
+import java.util.ArrayList;
+import org.polypheny.db.algebra.operators.OperatorName;
+import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.CypherContext;
+import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.RexType;
+import org.polypheny.db.languages.OperatorRegistry;
+import org.polypheny.db.rex.RexCall;
+import org.polypheny.db.rex.RexNode;
+import org.polypheny.db.type.entity.PolyString;
+import org.polypheny.db.util.Pair;
 import org.polypheny.db.cypher.expression.CypherExpression;
 import org.polypheny.db.languages.ParserPos;
 
@@ -42,6 +51,29 @@ public class CypherCase extends CypherExpression {
         this.when = when;
         this.then = then;
         this.elseCase = elseCase;
+    }
+
+
+    /**
+     * The case as a single expression: the conditions and their results in turn, with the else
+     * branch last. That is the shape the CASE operator expects, and the Neo4j adapter writes it
+     * back out as CASE WHEN ... THEN ... ELSE ... END.
+     */
+    @Override
+    public Pair<PolyString, RexNode> getRex( CypherContext context, RexType type ) {
+        List<RexNode> operands = new ArrayList<>();
+        for ( int i = 0; i < when.size(); i++ ) {
+            operands.add( when.get( i ).getRex( context, type ).right );
+            operands.add( then.get( i ).getRex( context, type ).right );
+        }
+        if ( elseCase != null ) {
+            operands.add( elseCase.getRex( context, type ).right );
+        }
+
+        return Pair.of( null, new RexCall(
+                operands.get( 1 ).getType(),
+                OperatorRegistry.get( OperatorName.CASE ),
+                operands ) );
     }
 
 

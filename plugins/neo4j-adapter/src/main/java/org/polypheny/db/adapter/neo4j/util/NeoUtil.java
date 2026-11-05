@@ -342,6 +342,19 @@ public interface NeoUtil {
             case UNARY_MINUS -> o -> String.format( "-%s", o.get( 0 ) );
             case UNARY_PLUS -> o -> o.get( 0 );
             case COALESCE -> o -> "coalesce(" + String.join( ", ", o ) + ")";
+            case CASE -> o -> {
+                // The operands alternate condition and result, with a trailing else.
+                StringBuilder builder = new StringBuilder( "CASE" );
+                int i = 0;
+                while ( i + 1 < o.size() ) {
+                    builder.append( " WHEN " ).append( o.get( i ) ).append( " THEN " ).append( o.get( i + 1 ) );
+                    i += 2;
+                }
+                if ( i < o.size() ) {
+                    builder.append( " ELSE " ).append( o.get( i ) );
+                }
+                return builder.append( " END" ).toString();
+            };
             case NOT_LIKE -> handleLike( operands, true );
             case CYPHER_LIKE -> o -> String.format( "%s =~ '%s'", o.get( 0 ), maybeUnquote( getAsRegex( o.get( 1 ) ) ) );
             case LIKE -> handleLike( operands, false );
