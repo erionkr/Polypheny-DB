@@ -81,7 +81,9 @@ public class CypherVariable extends CypherExpression {
             }
         }
 
-        throw new GenericRuntimeException( "The used variable is not known." );
+        throw new GenericRuntimeException(
+                "The variable " + name + " is not known here; the row holds "
+                        + node.getTupleType().getFieldNames() );
     }
 
 
