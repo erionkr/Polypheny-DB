@@ -19,6 +19,7 @@ package org.polypheny.db.adapter.neo4j.rules.graph;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.labels_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.list_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.match_;
+import static org.polypheny.db.adapter.neo4j.util.NeoStatements.optionalMatch_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.node_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.path_;
 
@@ -47,8 +48,8 @@ public class NeoLpgMatch extends LpgMatch implements NeoGraphAlg {
      * @param traits Traits active for this node, including {@link ModelTrait#GRAPH}
      * @param input Input algebraic expression
      */
-    public NeoLpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names ) {
-        super( cluster, traits, input, matches, names );
+    public NeoLpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names, boolean optional ) {
+        super( cluster, traits, input, matches, names, optional );
     }
 
 
@@ -76,13 +77,13 @@ public class NeoLpgMatch extends LpgMatch implements NeoGraphAlg {
             }
         }
 
-        implementor.add( match_( list_( neoMatches ) ) );
+        implementor.add( optional ? optionalMatch_( list_( neoMatches ) ) : match_( list_( neoMatches ) ) );
     }
 
 
     @Override
     public AlgNode copy( AlgTraitSet traitSet, List<AlgNode> inputs ) {
-        return new NeoLpgMatch( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), matches, names );
+        return new NeoLpgMatch( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), matches, names, optional );
     }
 
 }

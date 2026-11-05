@@ -276,7 +276,8 @@ public interface NeoGraphRules {
                     match.getTraitSet().replace( NeoConvention.INSTANCE ),
                     convert( match.getInput(), NeoConvention.INSTANCE ),
                     match.getMatches(),
-                    match.getNames() );
+                    match.getNames(),
+                    match.isOptional() );
         }
 
     }

@@ -64,7 +64,7 @@ public class EnumerableLpgMatch extends LpgMatch implements EnumerableAlg {
      * @param input Input relational expression
      */
     protected EnumerableLpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names ) {
-        super( cluster, traits, input, matches, names );
+        super( cluster, traits, input, matches, names, false );
     }
 
 

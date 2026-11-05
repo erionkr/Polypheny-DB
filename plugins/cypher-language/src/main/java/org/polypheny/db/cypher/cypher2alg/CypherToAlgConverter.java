@@ -362,9 +362,9 @@ public class CypherToAlgConverter {
 
     private void convertMatch( CypherMatch clause, CypherContext context ) {
         setKindIfNull( context, Kind.SELECT );
-        if ( clause.isOptional() ) {
-            throw new UnsupportedOperationException();
-        }
+        // An optional match keeps the row when the pattern finds nothing, with the columns it
+        // would have filled left null. The flag travels to combineMatch, which builds the node.
+        context.optionalMatch = clause.isOptional();
 
         context.active = clause;
 
@@ -431,6 +431,11 @@ public class CypherToAlgConverter {
         public CypherNode active;
         public Kind kind;
         private final Map<PolyString, PolyNode> nodes = new HashMap<>();
+
+        /**
+         * Set while converting an OPTIONAL MATCH, read when the node for it is built.
+         */
+        private boolean optionalMatch = false;
         private List<Pair<PolyString, EdgeVariableHolder>> edges = new LinkedList<>();
 
 
@@ -477,7 +482,8 @@ public class CypherToAlgConverter {
 
             List<RexCall> calls = Pair.right( matches ).stream().map( r -> (RexCall) r ).toList();
 
-            stack.add( new LogicalLpgMatch( cluster, cluster.traitSet(), stack.pop(), calls, Pair.left( matches ) ) );
+            stack.add( new LogicalLpgMatch( cluster, cluster.traitSet(), stack.pop(), calls, Pair.left( matches ), optionalMatch ) );
+            optionalMatch = false;
             clearVariables();
         }
 

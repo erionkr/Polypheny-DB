@@ -36,7 +36,12 @@ public class LogicalLpgMatch extends LpgMatch {
      * Subclass of {@link LpgMatch} not targeted at any particular engine or calling convention.
      */
     public LogicalLpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names ) {
-        super( cluster, traits, input, matches, names );
+        this( cluster, traits, input, matches, names, false );
+    }
+
+
+    public LogicalLpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names, boolean optional ) {
+        super( cluster, traits, input, matches, names, optional );
     }
 
 
@@ -55,7 +60,7 @@ public class LogicalLpgMatch extends LpgMatch {
 
     @Override
     public AlgNode copy( AlgTraitSet traitSet, List<AlgNode> inputs ) {
-        return new LogicalLpgMatch( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), matches, names );
+        return new LogicalLpgMatch( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), matches, names, optional );
     }
 
 

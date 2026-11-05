@@ -46,15 +46,23 @@ public abstract class LpgMatch extends SingleAlg implements LpgAlg {
     @Getter
     protected final List<PolyString> names;
 
+    /**
+     * Whether a row survives even when the pattern finds nothing, with the columns it would have
+     * filled left null. This is what OPTIONAL MATCH asks for.
+     */
+    @Getter
+    protected final boolean optional;
+
 
     /**
      * Creates a {@link LpgMatch}.
      * {@link ModelTrait#GRAPH} node, which represents a <code>MATCH</code> operator.
      */
-    protected LpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names ) {
+    protected LpgMatch( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<RexCall> matches, List<PolyString> names, boolean optional ) {
         super( cluster, traits, input );
         this.matches = matches;
         this.names = names;
+        this.optional = optional;
     }
 
 
@@ -93,7 +101,7 @@ public abstract class LpgMatch extends SingleAlg implements LpgAlg {
         if ( exp == exps ) {
             return this;
         }
-        return new LogicalLpgMatch( getCluster(), traitSet, input, exps.stream().map( e -> (RexCall) e ).toList(), names );
+        return new LogicalLpgMatch( getCluster(), traitSet, input, exps.stream().map( e -> (RexCall) e ).toList(), names, optional );
     }
 
 

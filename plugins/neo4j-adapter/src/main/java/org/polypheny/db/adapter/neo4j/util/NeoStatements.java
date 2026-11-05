@@ -48,6 +48,7 @@ public interface NeoStatements {
 
     enum StatementType {
         MATCH( "MATCH" ),
+        OPTIONAL_MATCH( "OPTIONAL MATCH" ),
         CREATE( "CREATE" ),
         WHERE( "WHERE" ),
         RETURN( "RETURN" ),
@@ -715,6 +716,18 @@ public interface NeoStatements {
 
     static MatchStatement match_( NeoStatement... statement ) {
         return new MatchStatement( list_( Arrays.asList( statement ) ) );
+    }
+
+    class OptionalMatchStatement extends OperatorStatement {
+
+        protected OptionalMatchStatement( ListStatement<?> statements ) {
+            super( StatementType.OPTIONAL_MATCH, statements );
+        }
+
+    }
+
+    static OptionalMatchStatement optionalMatch_( NeoStatement... statement ) {
+        return new OptionalMatchStatement( list_( Arrays.asList( statement ) ) );
     }
 
     class ForeachStatement extends OperatorStatement {
