@@ -98,7 +98,6 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
                 if ( agg.getInput().isEmpty() ) {
                     refs.add( "*" );
                 } else {
-                System.out.println( "=== agg " + agg.name + " index " + ((RexIndexRef) agg.getInput().get()).getIndex() + " lastNames " + lastNames );
                     refs.add( lastNames.get( ((RexIndexRef) agg.getInput().get()).getIndex() ) );
                 }
                 int i = currentNames.indexOf( agg.name );
