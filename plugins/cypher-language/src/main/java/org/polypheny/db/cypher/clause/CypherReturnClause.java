@@ -41,6 +41,7 @@ import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.RexType;
 import org.polypheny.db.cypher.expression.CypherAggregate;
 import org.polypheny.db.cypher.expression.CypherExpression;
 import org.polypheny.db.cypher.expression.CypherFunctionInvocation;
+import org.polypheny.db.cypher.expression.CypherVariable;
 import org.polypheny.db.cypher.expression.CypherProperty;
 import org.polypheny.db.languages.ParserPos;
 import org.polypheny.db.plan.AlgTraitSet;
@@ -137,6 +138,15 @@ public class CypherReturnClause extends CypherClause {
                     int i = node.getTupleType().getFieldNames().indexOf( name.getName() );
                     RexNameRef ref = RexNameRef.create( name.getName(), i, node.getTupleType().getFields().get( i ).getType() );
                     groupIndexes.add( ref );
+                } else if ( item.getExpression() instanceof CypherVariable variable ) {
+                    // A bare variable groups the same way a property does; without this it was
+                    // neither a group nor an aggregate, so it vanished from the row.
+                    int i = node.getTupleType().getFieldNames().indexOf( variable.getName() );
+                    if ( i >= 0 ) {
+                        AlgDataType type = node.getTupleType().getFields().get( i ).getType();
+                        builder.add( variable.getName(), null, type );
+                        groupIndexes.add( RexNameRef.create( variable.getName(), i, type ) );
+                    }
                 } else if ( item.getExpression() instanceof CypherAggregate aggregate ) {
 
                     Pair<String, AggregateCall> aggIndex = aggIndexes.get( aggCount );
@@ -144,6 +154,9 @@ public class CypherReturnClause extends CypherClause {
                     calls.add( call );
 
                     builder.add( item.getVariable() != null ? item.getVariable().getName() : aggregate.op.name(), null, call.getType( node.getCluster() ) );
+                    // Each aggregate takes the next of the calls collected for this clause;
+                    // without this they all read the first one.
+                    aggCount++;
                 }
             }
         }

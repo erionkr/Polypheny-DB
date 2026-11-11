@@ -68,6 +68,12 @@ public abstract class LpgAggregate extends SingleAlg implements LpgAlg {
         AlgDataTypeFactory.Builder builder = getCluster().getTypeFactory().builder();
         builder.add( "_id", null, DocumentType.ofDoc() );
 
+        // A grouping key stays available after the aggregate: WITH tag, sum(x) AS total binds
+        // tag as much as it binds total, and a later clause can name either.
+        for ( RexNameRef group : groups ) {
+            builder.add( group.name, null, DocumentType.ofDoc() );
+        }
+
         for ( LaxAggregateCall aggCall : aggCalls ) {
             builder.add( aggCall.name, null, DocumentType.ofDoc() );
         }

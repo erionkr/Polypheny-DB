@@ -29,6 +29,7 @@ import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.CypherContext;
 import org.polypheny.db.cypher.cypher2alg.CypherToAlgConverter.RexType;
 import org.polypheny.db.languages.OperatorRegistry;
 import org.polypheny.db.languages.ParserPos;
+import org.polypheny.db.rex.RexIndexRef;
 import org.polypheny.db.rex.RexNode;
 import org.polypheny.db.type.PolyType;
 import org.polypheny.db.type.entity.PolyString;
@@ -60,6 +61,12 @@ public class CypherAggregate extends CypherExpression {
         if ( target != null ) {
             namedNode = target.getRex( context, RexType.PROJECT );
             name = namedNode.left;
+        }
+
+        // Which field the aggregate reads: the call carries indexes, and leaving them empty made
+        // every aggregate fall back to the first field of the row.
+        if ( namedNode != null && namedNode.right instanceof RexIndexRef ref ) {
+            aggIndexes.add( ref.getIndex() );
         }
 
         Pair<RexNode, AlgDataType> typeAndValue = getReturnType( context, namedNode != null ? namedNode.right : null );

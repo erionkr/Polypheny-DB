@@ -73,9 +73,13 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
         implementor.visitChild( 0, getInput() );
         if ( implementor.getLast() instanceof LpgProject || implementor.getLast() instanceof NeoLpgMatch ) {
             // A projection below an aggregate has already emitted a WITH, and that WITH ends the
-            // binding of the node variable the aggregate still needs. The aggregate builds its own
-            // projection, so that statement goes; a MATCH below has to stay.
-            if ( implementor.getLast() instanceof LpgProject ) {
+            // binding of the node variable the aggregate still needs, so it goes. It stays where
+            // the aggregate reads a value that projection computes, such as a CASE.
+            boolean readsComputedValue = aggCalls.stream()
+                    .anyMatch( a -> a.getInput().isPresent() && a.getInput().get() instanceof RexIndexRef ref
+                            && ref.getIndex() < implementor.getLast().getTupleType().getFieldCount()
+                            && !implementor.getLast().getTupleType().getFieldNames().get( ref.getIndex() ).startsWith( "$" ) );
+            if ( implementor.getLast() instanceof LpgProject && !readsComputedValue ) {
                 implementor.removeLast();
             }
             List<String> finalRow = new ArrayList<>();
@@ -94,6 +98,7 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
                 if ( agg.getInput().isEmpty() ) {
                     refs.add( "*" );
                 } else {
+                System.out.println( "=== agg " + agg.name + " index " + ((RexIndexRef) agg.getInput().get()).getIndex() + " lastNames " + lastNames );
                     refs.add( lastNames.get( ((RexIndexRef) agg.getInput().get()).getIndex() ) );
                 }
                 int i = currentNames.indexOf( agg.name );

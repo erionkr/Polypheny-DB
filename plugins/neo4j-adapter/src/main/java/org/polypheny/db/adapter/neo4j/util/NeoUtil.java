@@ -410,6 +410,7 @@ public interface NeoUtil {
             case CYPHER_HAS_PROPERTY -> o -> String.format( " EXISTS(%s.%s) ", o.get( 0 ), NeoUtil.maybeUnquote( o.get( 1 ) ) );
             case COUNT -> o -> String.format( "count(%s)", String.join( ",", o ) );
             case AVG -> o -> String.format( "avg(%s)", o.get( 0 ) );
+            case SUM -> o -> String.format( "sum(%s)", o.get( 0 ) );
             case MIN -> o -> String.format( "min(%s)", o.get( 0 ) );
             case MAX -> o -> String.format( "max(%s)", o.get( 0 ) );
             case COLLECT -> o -> String.format( "collect(%s)", o.get( 0 ) );
