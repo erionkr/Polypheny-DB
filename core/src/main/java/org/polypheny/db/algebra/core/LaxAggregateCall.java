@@ -33,12 +33,23 @@ public class LaxAggregateCall {
     public final String name;
     public final AggFunction function;
     private final RexNode input;
+    /**
+     * Whether the aggregate sees each distinct value once. Cypher writes this inside the call,
+     * as collect(DISTINCT x), and dropping it changes the answer rather than its shape.
+     */
+    public final boolean distinct;
 
 
     public LaxAggregateCall( String name, AggFunction function, RexNode input ) {
+        this( name, function, input, false );
+    }
+
+
+    public LaxAggregateCall( String name, AggFunction function, RexNode input, boolean distinct ) {
         this.name = name;
         this.function = function;
         this.input = input;
+        this.distinct = distinct;
     }
 
 
@@ -49,7 +60,7 @@ public class LaxAggregateCall {
 
     public static LaxAggregateCall from( AggregateCall call, AlgNode parent ) {
         if ( parent == null ) {
-            return new LaxAggregateCall( call.name, call.getAggregation(), null );
+            return new LaxAggregateCall( call.name, call.getAggregation(), null, call.isDistinct() );
         }
 
         RexNode node;
@@ -59,7 +70,7 @@ public class LaxAggregateCall {
             node = new RexIndexRef( call.getArgList().get( 0 ), parent.getTupleType().getFields().get( call.getArgList().get( 0 ) ).getType() );
         }
 
-        return new LaxAggregateCall( call.name, call.getAggregation(), node );
+        return new LaxAggregateCall( call.name, call.getAggregation(), node, call.isDistinct() );
     }
 
 

@@ -98,7 +98,9 @@ public class NeoLpgAggregate extends LpgAggregate implements NeoGraphAlg {
                 if ( agg.getInput().isEmpty() ) {
                     refs.add( "*" );
                 } else {
-                    refs.add( lastNames.get( ((RexIndexRef) agg.getInput().get()).getIndex() ) );
+                    String ref = lastNames.get( ((RexIndexRef) agg.getInput().get()).getIndex() );
+                    // Cypher writes DISTINCT inside the call, before the argument.
+                    refs.add( agg.distinct ? "DISTINCT " + ref : ref );
                 }
                 int i = currentNames.indexOf( agg.name );
                 if ( i == -1 ) {
