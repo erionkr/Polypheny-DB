@@ -39,15 +39,28 @@ public abstract class LpgProject extends SingleAlg implements LpgAlg {
     protected final List<? extends RexNode> projects;
     protected final List<PolyString> names;
 
+    /**
+     * Whether the projection keeps only distinct rows. Cypher writes this as WITH DISTINCT or
+     * RETURN DISTINCT, and dropping it changes the answer rather than its shape.
+     */
+    @Getter
+    protected final boolean distinct;
+
 
     /**
      * Creates a {@link LpgProject}.
      * {@link ModelTrait#GRAPH} native node of a project.
      */
     protected LpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<? extends RexNode> projects, List<PolyString> names ) {
+        this( cluster, traits, input, projects, names, false );
+    }
+
+
+    protected LpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<? extends RexNode> projects, List<PolyString> names, boolean distinct ) {
         super( cluster, traits, input );
         this.projects = projects;
         this.names = names;
+        this.distinct = distinct;
     }
 
 
@@ -55,6 +68,7 @@ public abstract class LpgProject extends SingleAlg implements LpgAlg {
     public String algCompareString() {
         return "$" + getClass().getSimpleName() +
                 "$" + projects.hashCode() +
+                "$" + distinct +
                 "$" + input.algCompareString();
     }
 

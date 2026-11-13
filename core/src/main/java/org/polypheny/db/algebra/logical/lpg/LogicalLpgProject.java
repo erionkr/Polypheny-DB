@@ -41,7 +41,12 @@ public class LogicalLpgProject extends LpgProject {
      * Subclass of {@link LpgProject} not targeted at any particular engine or calling convention.
      */
     public LogicalLpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<? extends RexNode> projects, List<PolyString> names ) {
-        super( cluster, traits.replace( Convention.NONE ), input, projects, names );
+        this( cluster, traits, input, projects, names, false );
+    }
+
+
+    public LogicalLpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<? extends RexNode> projects, List<PolyString> names, boolean distinct ) {
+        super( cluster, traits.replace( Convention.NONE ), input, projects, names, distinct );
 
         assert (this.names == null || this.projects == null) || this.names.size() == this.projects.size();
     }
@@ -74,7 +79,7 @@ public class LogicalLpgProject extends LpgProject {
 
     @Override
     public AlgNode copy( AlgTraitSet traitSet, List<AlgNode> inputs ) {
-        return new LogicalLpgProject( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), projects, names );
+        return new LogicalLpgProject( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), projects, names, distinct );
     }
 
 

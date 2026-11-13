@@ -30,6 +30,7 @@ import static org.polypheny.db.adapter.neo4j.util.NeoStatements.return_;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
@@ -149,12 +150,27 @@ public class NeoGraphImplementor extends AlgShuttleImpl {
                 // those, so the sort pointed at something that no longer existed.
                 statements.add( return_( statement.statements ) );
             } else {
-                // have to add
                 statements.add( return_( getFields( last.getTupleType() ) ) );
             }
         }
     }
 
+
+    /**
+     * Pulls the names a WITH leaves in scope out of an already built clause: the alias where an item
+     * assigns one, the item itself where it does not. The row type below a WITH still carries the
+     * expressions the aliases were computed from, so a RETURN built from it names variables the WITH
+     * has already dropped.
+     */
+    private List<NeoStatement> getNames( OperatorStatement statement ) {
+        List<NeoStatement> names = new ArrayList<>();
+        for ( NeoStatement item : statement.statements.getStatements() ) {
+            String built = item.build().trim();
+            int as = built.toUpperCase( Locale.ROOT ).lastIndexOf( " AS " );
+            names.add( literal_( PolyString.of( as < 0 ? built : built.substring( as + 4 ).trim() ) ) );
+        }
+        return names;
+    }
 
     /**
      * Returns the specified fields as cypher equivalent {@link NeoStatement}.

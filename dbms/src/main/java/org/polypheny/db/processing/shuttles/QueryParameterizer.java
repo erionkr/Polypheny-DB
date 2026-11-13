@@ -168,7 +168,10 @@ public class QueryParameterizer extends AlgShuttleImpl implements RexVisitor<Rex
                 project.getTraitSet(),
                 project.getInput(),
                 project.getProjects(),
-                project.getNames() );
+                project.getNames(),
+                // Parameterizing rebuilds the projection node. Dropping the flag here turned a
+                // WITH DISTINCT into a plain WITH long before the planner ever saw the node.
+                project.isDistinct() );
     }
 
 

@@ -21,6 +21,8 @@ import static org.polypheny.db.adapter.neo4j.util.NeoStatements.list_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.literal_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.return_;
 import static org.polypheny.db.adapter.neo4j.util.NeoStatements.with_;
+import static org.polypheny.db.adapter.neo4j.util.NeoStatements.withDistinct_;
+import static org.polypheny.db.adapter.neo4j.util.NeoStatements.returnDistinct_;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,8 +49,8 @@ public class NeoLpgProject extends LpgProject implements NeoGraphAlg {
      * @param traits Traits active for this node, including {@link ModelTrait#GRAPH}
      * @param input Input algebraic expression
      */
-    public NeoLpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<PolyString> names, List<? extends RexNode> projects ) {
-        super( cluster, traits, input, projects, names );
+    public NeoLpgProject( AlgCluster cluster, AlgTraitSet traits, AlgNode input, List<PolyString> names, List<? extends RexNode> projects, boolean distinct ) {
+        super( cluster, traits, input, projects, names, distinct );
     }
 
 
@@ -79,14 +81,14 @@ public class NeoLpgProject extends LpgProject implements NeoGraphAlg {
                 // WITH ... ORDER BY ... RETURN, and the RETURN is simply appended. Only when the
                 // sort already carries the final RETURN is there one to replace.
                 if ( implementor.statements.stream().anyMatch( s -> s.type == StatementType.RETURN ) ) {
-                    implementor.replaceReturn( return_( list_( statements ) ) );
+                    implementor.replaceReturn( distinct ? returnDistinct_( list_( statements ) ) : return_( list_( statements ) ) );
                 } else {
-                    implementor.add( return_( list_( statements ) ) );
+                    implementor.add( distinct ? returnDistinct_( list_( statements ) ) : return_( list_( statements ) ) );
                 }
                 return;
             }
 
-            implementor.add( with_( list_( statements ) ) );
+            implementor.add( distinct ? withDistinct_( list_( statements ) ) : with_( list_( statements ) ) );
         }
 
     }
@@ -94,7 +96,7 @@ public class NeoLpgProject extends LpgProject implements NeoGraphAlg {
 
     @Override
     public AlgNode copy( AlgTraitSet traitSet, List<AlgNode> inputs ) {
-        return new NeoLpgProject( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), names, projects );
+        return new NeoLpgProject( inputs.get( 0 ).getCluster(), traitSet, inputs.get( 0 ), names, projects, distinct );
     }
 
 }

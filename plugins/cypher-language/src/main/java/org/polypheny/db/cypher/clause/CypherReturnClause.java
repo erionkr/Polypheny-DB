@@ -187,10 +187,13 @@ public class CypherReturnClause extends CypherClause {
                 context.cluster.traitSet(),
                 node,
                 Pair.right( nameAndProject ),
-                Pair.left( nameAndProject )
+                Pair.left( nameAndProject ),
+                distinct
         );
 
-        if ( node.getTupleType().equals( project.getTupleType() ) ) {
+        // A projection that changes nothing is dropped, but not when it carries DISTINCT:
+        // that is the whole statement, not a rename.
+        if ( !distinct && node.getTupleType().equals( project.getTupleType() ) ) {
             return node;
         }
         return project;

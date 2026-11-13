@@ -53,6 +53,8 @@ public interface NeoStatements {
         WHERE( "WHERE" ),
         RETURN( "RETURN" ),
         WITH( "WITH" ),
+        WITH_DISTINCT( "WITH DISTINCT" ),
+        RETURN_DISTINCT( "RETURN DISTINCT" ),
         SET( "SET" ),
 
         FOREACH( "FOREACH" ),
@@ -123,6 +125,10 @@ public interface NeoStatements {
     }
 
     class ListStatement<T extends NeoStatement> extends NeoStatement {
+
+        public List<T> getStatements() {
+            return statements;
+        }
 
         private final List<T> statements;
         private final String prefix;
@@ -682,6 +688,11 @@ public interface NeoStatements {
             super( StatementType.RETURN, statements );
         }
 
+
+        protected ReturnStatement( StatementType type, ListStatement<?> statements ) {
+            super( type, statements );
+        }
+
     }
 
     static ReturnStatement return_( NeoStatement... statement ) {
@@ -768,6 +779,30 @@ public interface NeoStatements {
 
     static WithStatement with_( NeoStatement... statement ) {
         return new WithStatement( list_( Arrays.asList( statement ) ) );
+    }
+
+    class WithDistinctStatement extends OperatorStatement {
+
+        protected WithDistinctStatement( ListStatement<?> statements ) {
+            super( StatementType.WITH_DISTINCT, statements );
+        }
+
+    }
+
+    static WithDistinctStatement withDistinct_( NeoStatement... statement ) {
+        return new WithDistinctStatement( list_( Arrays.asList( statement ) ) );
+    }
+
+    class ReturnDistinctStatement extends ReturnStatement {
+
+        protected ReturnDistinctStatement( ListStatement<?> statements ) {
+            super( StatementType.RETURN_DISTINCT, statements );
+        }
+
+    }
+
+    static ReturnDistinctStatement returnDistinct_( NeoStatement... statement ) {
+        return new ReturnDistinctStatement( list_( Arrays.asList( statement ) ) );
     }
 
     class SetStatement extends OperatorStatement {

@@ -345,7 +345,9 @@ public class CypherToAlgConverter {
             nodes.addAll( Pair.right( additional ) );
             names.addAll( Pair.left( additional ) );
 
-            node = new LogicalLpgProject( node.getCluster(), node.getTraitSet(), input, nodes, names );
+            // The extra column is added to the projection, not instead of it: a DISTINCT it
+            // carries has to survive that.
+            node = new LogicalLpgProject( node.getCluster(), node.getTraitSet(), input, nodes, names, project.isDistinct() );
         } else {
             // we can add a project
             nodes = new ArrayList<>();

@@ -130,7 +130,8 @@ public interface NeoGraphRules {
                     alg.getTraitSet().replace( NeoConvention.INSTANCE ),
                     convert( project.getInput(), NeoConvention.INSTANCE ),
                     project.getNames(),
-                    project.getProjects() );
+                    project.getProjects(),
+                    project.isDistinct() );
         }
 
     }
