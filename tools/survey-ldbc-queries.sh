@@ -12,7 +12,7 @@ set -u
 
 ENDPOINT="http://localhost:13137/cypher"
 NAMESPACE="ldbcsnb"
-QUERIES="$HOME/Developer/Polypheny-Simple-Client-ldbcsnb/build/resources/main/org/polypheny/simpleclient/scenario/ldbcsnb"
+QUERIES="$HOME/Polypheny-Simple-Client-ldbcsnb/build/resources/main/org/polypheny/simpleclient/scenario/ldbcsnb"
 
 # Values that exist in the SF 0.1 dataset.
 PERSON_ID=26388279067534
@@ -74,32 +74,23 @@ run_one() {
     local query
     query=$(extract "$file")
 
+    # jq -Rs reads the query as one raw string, which also escapes the quotes and braces a
+    # Cypher query is full of.
     local payload
-    payload=$(/usr/bin/python3 -c "
-import json, sys
-print(json.dumps({'query': sys.stdin.read(), 'namespace': '$NAMESPACE'}))
-" <<< "$query")
+    payload=$(printf '%s' "$query" | jq -Rs --arg ns "$NAMESPACE" '{query: ., namespace: $ns}')
 
     local response
     response=$(curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$ENDPOINT")
 
-    /usr/bin/python3 -c "
-import json, sys
-
-name = '$name'
-try:
-    data = json.loads(sys.stdin.read())[0]
-except Exception as e:
-    print(f'{name}\tUNPARSEABLE\t{e}')
-    sys.exit()
-
-error = data.get('error')
-if not error:
-    rows = len(data.get('data', []))
-    print(f'{name}\tOK\t{rows} rows')
-else:
-    print(f'{name}\tFAILED\t' + ' '.join(error.split())[:200])
-" <<< "$response"
+    # An empty error field counts as success; the message is collapsed onto one line and cut,
+    # because a stack trace would otherwise run over the whole table.
+    printf '%s' "$response" | jq -r --arg name "$name" '
+        .[0] as $d
+        | if $d == null then "\($name)\tUNPARSEABLE\tempty response"
+          elif (($d.error // "") | length) == 0 then "\($name)\tOK\t\($d.data | length) rows"
+          else "\($name)\tFAILED\t\($d.error | gsub("^\\s+|\\s+$"; "") | gsub("\\s+"; " ") | .[0:200])"
+          end
+    ' 2>/dev/null || printf '%s\tUNPARSEABLE\tresponse was not JSON\n' "$name"
 }
 
 echo "LDBC SNB Interactive queries through Polypheny"
