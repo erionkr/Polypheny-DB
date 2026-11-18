@@ -109,13 +109,29 @@ public class LaxAggregateCall {
             case AVG -> cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true );
             // A sum, minimum or maximum returns the type it was given. Deriving a double here
             // is what turned an integer sum of 153 into 153.0 on the way back from the store.
-            case SUM, MIN, MAX -> inputType == null
+            case SUM, MIN, MAX -> !isConcreteNumeric( inputType )
                     ? cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true )
                     : cluster.getTypeFactory().createTypeWithNullability( inputType, true );
             // collect gathers its input into a list rather than reducing it to one value.
             case COLLECT -> cluster.getTypeFactory().createArrayType(
                     cluster.getTypeFactory().createPolyType( PolyType.ANY ), -1 );
             default -> null;
+        };
+    }
+
+
+    /**
+     * Whether this is a number the store can add up as it stands. A graph property carries no
+     * type of its own, and an aggregate over one has to be computed as a double: taking the
+     * type as given there produces an accumulator the generated code cannot add to.
+     */
+    private static boolean isConcreteNumeric( AlgDataType type ) {
+        if ( type == null ) {
+            return false;
+        }
+        return switch ( type.getPolyType() ) {
+            case TINYINT, SMALLINT, INTEGER, BIGINT, DECIMAL, FLOAT, REAL, DOUBLE -> true;
+            default -> false;
         };
     }
 
@@ -129,7 +145,7 @@ public class LaxAggregateCall {
             // the plan. An input with no concrete type, as in the document model, still needs it.
             case SUM, MAX, MIN -> {
                 AlgDataType in = getInput().map( RexNode::getType ).orElse( null );
-                yield in == null || in.getPolyType() == PolyType.ANY || in.getPolyType() == PolyType.DOCUMENT
+                yield !isConcreteNumeric( in )
                         ? Optional.of( cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true ) )
                         : Optional.empty();
             }
