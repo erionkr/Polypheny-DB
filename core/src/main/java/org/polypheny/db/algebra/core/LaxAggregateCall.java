@@ -90,7 +90,7 @@ public class LaxAggregateCall {
 
 
     public AlgDataType getType( AlgCluster cluster ) {
-        AlgDataType type = getType( cluster, function );
+        AlgDataType type = getType( cluster, function, getInput().map( RexNode::getType ).orElse( null ) );
         if ( type == null ) {
             throw new GenericRuntimeException( "Unknown aggregate function: " + function.getKind() );
         }
@@ -99,9 +99,19 @@ public class LaxAggregateCall {
 
 
     public static AlgDataType getType( AlgCluster cluster, AggFunction function ) {
+        return getType( cluster, function, null );
+    }
+
+
+    public static AlgDataType getType( AlgCluster cluster, AggFunction function, AlgDataType inputType ) {
         return switch ( function.getKind() ) {
             case COUNT -> cluster.getTypeFactory().createPolyType( PolyType.BIGINT );
-            case SUM, AVG, MIN, MAX -> cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true );
+            case AVG -> cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true );
+            // A sum, minimum or maximum returns the type it was given. Deriving a double here
+            // is what turned an integer sum of 153 into 153.0 on the way back from the store.
+            case SUM, MIN, MAX -> inputType == null
+                    ? cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true )
+                    : cluster.getTypeFactory().createTypeWithNullability( inputType, true );
             // collect gathers its input into a list rather than reducing it to one value.
             case COLLECT -> cluster.getTypeFactory().createArrayType(
                     cluster.getTypeFactory().createPolyType( PolyType.ANY ), -1 );
@@ -113,7 +123,16 @@ public class LaxAggregateCall {
     public Optional<AlgDataType> requiresCast( AlgCluster cluster ) {
         return switch ( function.getKind() ) {
             case COUNT -> Optional.empty();
-            case SUM, AVG, MAX, MIN -> Optional.ofNullable( cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true ) );
+            case AVG -> Optional.of( cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true ) );
+            // A sum, minimum or maximum keeps the type of its input, so casting that input to
+            // a double contradicts the type derived for the call itself and the planner rejects
+            // the plan. An input with no concrete type, as in the document model, still needs it.
+            case SUM, MAX, MIN -> {
+                AlgDataType in = getInput().map( RexNode::getType ).orElse( null );
+                yield in == null || in.getPolyType() == PolyType.ANY || in.getPolyType() == PolyType.DOCUMENT
+                        ? Optional.of( cluster.getTypeFactory().createTypeWithNullability( cluster.getTypeFactory().createPolyType( PolyType.DOUBLE ), true ) )
+                        : Optional.empty();
+            }
             default -> Optional.empty();
         };
     }
