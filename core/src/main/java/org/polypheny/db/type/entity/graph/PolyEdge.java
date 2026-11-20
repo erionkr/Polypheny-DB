@@ -153,11 +153,11 @@ public class PolyEdge extends GraphPropertyHolder {
             return range + fromTo.left + ".." + fromTo.right;
         }
         if ( fromTo.right != null ) {
-            return fromTo.right.toString();
+            return range + ".." + fromTo.right;
         }
 
         if ( fromTo.left != null ) {
-            return fromTo.left.toString();
+            return range + fromTo.left + "..";
         }
         return range;
     }
